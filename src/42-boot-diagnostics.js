@@ -1,7 +1,7 @@
 /* ================================================================
    SLAMMERS — playing-for-keeps tazo roguelite (proof of concept)
    ================================================================ */
-var VERSION = '0.9.0';
+var VERSION = '0.9.1';
 var AUTO = /[?&]auto=1/.test(location.search);
 
 /* ---------- diagnostics: breadcrumbs, error banner, version ---------- */

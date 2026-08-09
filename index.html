@@ -187,7 +187,7 @@
     </div>
     <div id="pouch"></div>
     <div id="powwrap"><div id="powfill"></div><div id="gripband"></div></div>
-    <div id="hint">drag to aim · flick to tilt · release at the peak</div>
+    <div id="hint">TILT — drag to tip the slammer · tap = flat</div>
   </div>
 </div>
 <div id="banner"></div>
@@ -255,7 +255,7 @@
 /* ================================================================
    SLAMMERS — playing-for-keeps tazo roguelite (proof of concept)
    ================================================================ */
-var VERSION = '0.9.0';
+var VERSION = '0.9.1';
 var AUTO = /[?&]auto=1/.test(location.search);
 
 /* ---------- diagnostics: breadcrumbs, error banner, version ---------- */
@@ -1280,7 +1280,7 @@ function buildPouch(){
     img.title = SLAMMERS[k].name + ' — ' + SLAMMERS[k].desc;
     if (k === run.slammer) img.className = 'sel';
     img.addEventListener('click', function(){
-      if (!M || M.turn !== 'you' || (mode !== 'idle' && mode !== 'aim')) return;
+      if (!M || M.turn !== 'you' || ['idle','tilt','aimloc','power'].indexOf(mode) < 0) return;
       run.slammer = k;
       buildPouch();
     });
@@ -1299,8 +1299,10 @@ function beginTurn(side){
   buildPouch();
   if (side === 'you'){
     mode = 'idle';
+    resetThrow();
     el('turntext').textContent = 'YOUR TURN' + bellNote;
     el('hint').style.visibility = 'visible';
+    setHint('TILT — drag to tip the slammer · tap = flat');
     banner('YOUR TURN');
     if (AUTO) setTimeout(autoPlayerSlam, 250);
   } else {
@@ -2098,61 +2100,95 @@ function pointerToGround(ev){
   raycaster.setFromCamera(_ndc, camera);
   return raycaster.ray.intersectPlane(groundPlane, _hit) ? _hit : null;
 }
-/* Throw v2 gesture: the drag aims; the drag's *motion* at release tilts.
-   Stop dead on the target and let go = flat pancake. Flick through the
-   stack and release mid-motion = edge-first bite in that direction. */
-var aimTrail = [];
-function trailPush(x, z){
-  aimTrail.push({ x: x, z: z, t: performance.now() });
-  if (aimTrail.length > 10) aimTrail.shift();
-}
-function computeTilt(){
-  /* smoothed drag velocity over the last ~120 ms of motion */
-  var now = performance.now(), a = null, b = null;
-  for (var i = 0; i < aimTrail.length; i++){
-    if (now - aimTrail[i].t <= 120){ a = aimTrail[i]; break; }
+/* Throw v2 gesture — three deliberate phases, one skill each:
+   1. TILT  (drag from your touch point to tip the slammer; tap = flat)
+   2. AIM   (drag the target ring where you want it)
+   3. POWER (hold; release at the peak of the curve)
+   Touch-friendly: each phase is its own press-and-release. */
+var throwAtt = null, tiltAnchor = { x: 0, z: 0 };
+function setHint(txt){ el('hint').textContent = txt; }
+function ghostAt(x, y, z, att){
+  ghost.visible = true;
+  ghost.position.set(x, y, z);
+  if (att && att.tilt > 0.02){
+    _wobAx.set(att.dz, 0, -att.dx).normalize();
+    ghost.quaternion.setFromAxisAngle(_wobAx, att.tilt * TUNE.TILT_MAX);
+  } else {
+    ghost.quaternion.set(0, 0, 0, 1);
   }
-  b = aimTrail[aimTrail.length - 1];
-  if (!a || !b || a === b || now - b.t > 90) return { dx: 0, dz: 1, tilt: 0 };
-  var dt = (b.t - a.t) / 1000;
-  if (dt < 0.016) return { dx: 0, dz: 1, tilt: 0 };
-  var vx = (b.x - a.x) / dt, vz = (b.z - a.z) / dt;
-  var sp = Math.sqrt(vx * vx + vz * vz);
-  if (sp < 1.5) return { dx: 0, dz: 1, tilt: 0 };
-  return { dx: vx / sp, dz: vz / sp, tilt: clamp((sp - 1.5) / TUNE.TILT_SPEED, 0, 1) };
+}
+function resetThrow(){
+  throwAtt = null;
+  ghost.visible = false;
+  el('powwrap').style.visibility = 'hidden';
+  el('powfill').classList.remove('grip');
 }
 el('gl').addEventListener('pointerdown', function(ev){
   audioInit();
-  if (!M || M.turn !== 'you' || mode !== 'idle') return;
+  if (!M || M.turn !== 'you') return;
   var p = pointerToGround(ev);
   if (!p) return;
-  mode = 'aim'; aimT = 0;
-  aimTrail.length = 0;
-  aimPos.x = p.x; aimPos.z = p.z;
-  trailPush(p.x, p.z);
-  reticle.material.color.set(0x7fd9c0);
-  reticle.visible = true;
-  el('powwrap').style.visibility = 'visible';
+  if (mode === 'idle'){
+    /* phase 1: tilt dial — drag away from the touch point to tip */
+    mode = 'tilt';
+    tiltAnchor.x = p.x; tiltAnchor.z = p.z;
+    throwAtt = { dx: 0, dz: 1, tilt: 0, grip: false, scatter: 0 };
+    setHint('TILT — drag to tip the slammer · tap = flat');
+  } else if (mode === 'aimloc'){
+    aimPos.x = p.x; aimPos.z = p.z;
+    reticle.material.color.set(0x7fd9c0);
+    reticle.visible = true;
+  } else if (mode === 'power'){
+    /* phase 3: the curve starts on press */
+    aimT = 0;
+    el('powwrap').style.visibility = 'visible';
+  }
 });
 el('gl').addEventListener('pointermove', function(ev){
-  if (mode !== 'aim') return;
+  if (mode !== 'tilt' && mode !== 'aimloc') return;
   var p = pointerToGround(ev);
-  if (p){ aimPos.x = p.x; aimPos.z = p.z; trailPush(p.x, p.z); }
+  if (!p) return;
+  if (mode === 'tilt'){
+    var dx = p.x - tiltAnchor.x, dz = p.z - tiltAnchor.z;
+    var d = Math.sqrt(dx * dx + dz * dz);
+    if (d > 0.1){
+      throwAtt.dx = dx / d; throwAtt.dz = dz / d;
+      throwAtt.tilt = clamp(d / 1.6, 0, 1);
+    } else {
+      throwAtt.tilt = 0;
+    }
+  } else {
+    aimPos.x = p.x; aimPos.z = p.z;
+  }
 });
 window.addEventListener('pointerup', function(){
-  if (mode !== 'aim') return;
-  el('powwrap').style.visibility = 'hidden';
-  el('powfill').classList.remove('grip');
-  var att = computeTilt();
-  att.grip = gripAt(aimT);
-  var slop = sloppyAt(aimT);
-  att.scatter = TUNE.SCATTER * (att.grip ? 0.3 : 1) + slop * TUNE.SCATTER_SLOPPY;
-  var p = powerCurve(aimT);
-  if (att.grip){
-    popupAt3D(new THREE.Vector3(aimPos.x, 0.5, aimPos.z), 'TOURNAMENT GRIP!', '#f5b93d');
-    sfxGrip();
+  if (!M || M.turn !== 'you') return;
+  if (mode === 'tilt'){
+    if (throwAtt.tilt < 0.08) throwAtt.tilt = 0;
+    mode = 'aimloc';
+    aimPos.x = 0; aimPos.z = 0;
+    reticle.material.color.set(0x7fd9c0);
+    reticle.visible = true;
+    setHint('AIM — drag the target ring, let go to lock');
+  } else if (mode === 'aimloc'){
+    mode = 'power';
+    aimT = -1;   /* curve waits for the phase-3 press */
+    setHint('POWER — press and hold · release at the peak');
+  } else if (mode === 'power' && aimT >= 0){
+    el('powwrap').style.visibility = 'hidden';
+    el('powfill').classList.remove('grip');
+    var att = throwAtt || { dx: 0, dz: 1, tilt: 0 };
+    att.grip = gripAt(aimT);
+    var slop = sloppyAt(aimT);
+    att.scatter = TUNE.SCATTER * (att.grip ? 0.3 : 1) + slop * TUNE.SCATTER_SLOPPY;
+    var p = powerCurve(aimT);
+    if (att.grip){
+      popupAt3D(new THREE.Vector3(aimPos.x, 0.5, aimPos.z), 'TOURNAMENT GRIP!', '#f5b93d');
+      sfxGrip();
+    }
+    resetThrow();
+    doSlam('you', aimPos.x, aimPos.z, clamp(p, 0.08, 1), att);
   }
-  doSlam('you', aimPos.x, aimPos.z, clamp(p, 0.08, 1), att);
 });
 
 /* ---------- buttons ---------- */
@@ -2270,28 +2306,26 @@ function loop(ts){
     if (coin.settled) resolveToss();
   }
 
-  /* aim + power curve + attitude ghost */
-  if (mode === 'aim'){
-    aimT += rdt;
-    power = powerCurve(aimT);
-    var pf = el('powfill');
-    pf.style.width = (power * 100).toFixed(0) + '%';
-    pf.classList.toggle('grip', gripAt(aimT));
+  /* the three-phase throw: tilt dial → aim ring → power curve */
+  if (mode === 'tilt' && throwAtt){
+    /* the ghost slammer hovers over the court, tipping as you drag */
+    ghostAt(0, 1.5, 0, throwAtt);
+  } else if (mode === 'aimloc' && throwAtt){
     reticle.position.set(aimPos.x, 0.03, aimPos.z);
-    var sc = 0.8 + power * 0.5;
-    reticle.scale.set(sc, sc, sc);
-    /* live tilt preview: the ghost slammer above the reticle */
-    var gtilt = computeTilt();
-    ghost.visible = true;
-    ghost.position.set(aimPos.x, 1.15, aimPos.z);
-    if (gtilt.tilt > 0.02){
-      _wobAx.set(gtilt.dz, 0, -gtilt.dx).normalize();
-      ghost.quaternion.setFromAxisAngle(_wobAx, gtilt.tilt * TUNE.TILT_MAX);
-    } else {
-      ghost.quaternion.set(0, 0, 0, 1);
+    reticle.scale.set(1, 1, 1);
+    ghostAt(aimPos.x, 1.15, aimPos.z, throwAtt);
+  } else if (mode === 'power' && throwAtt){
+    reticle.position.set(aimPos.x, 0.03, aimPos.z);
+    ghostAt(aimPos.x, 1.15, aimPos.z, throwAtt);
+    if (aimT >= 0){
+      aimT += rdt;
+      power = powerCurve(aimT);
+      var pf = el('powfill');
+      pf.style.width = (power * 100).toFixed(0) + '%';
+      pf.classList.toggle('grip', gripAt(aimT));
+      var sc = 0.8 + power * 0.5;
+      reticle.scale.set(sc, sc, sc);
     }
-  } else if (ghost.visible && mode !== 'drop'){
-    ghost.visible = false;
   }
 
   /* rival telegraphs: reticle wanders to target, then slams */

@@ -111,7 +111,7 @@ function buildPouch(){
     img.title = SLAMMERS[k].name + ' — ' + SLAMMERS[k].desc;
     if (k === run.slammer) img.className = 'sel';
     img.addEventListener('click', function(){
-      if (!M || M.turn !== 'you' || (mode !== 'idle' && mode !== 'aim')) return;
+      if (!M || M.turn !== 'you' || ['idle','tilt','aimloc','power'].indexOf(mode) < 0) return;
       run.slammer = k;
       buildPouch();
     });
@@ -130,8 +130,10 @@ function beginTurn(side){
   buildPouch();
   if (side === 'you'){
     mode = 'idle';
+    resetThrow();
     el('turntext').textContent = 'YOUR TURN' + bellNote;
     el('hint').style.visibility = 'visible';
+    setHint('TILT — drag to tip the slammer · tap = flat');
     banner('YOUR TURN');
     if (AUTO) setTimeout(autoPlayerSlam, 250);
   } else {

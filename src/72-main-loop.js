@@ -38,28 +38,26 @@ function loop(ts){
     if (coin.settled) resolveToss();
   }
 
-  /* aim + power curve + attitude ghost */
-  if (mode === 'aim'){
-    aimT += rdt;
-    power = powerCurve(aimT);
-    var pf = el('powfill');
-    pf.style.width = (power * 100).toFixed(0) + '%';
-    pf.classList.toggle('grip', gripAt(aimT));
+  /* the three-phase throw: tilt dial → aim ring → power curve */
+  if (mode === 'tilt' && throwAtt){
+    /* the ghost slammer hovers over the court, tipping as you drag */
+    ghostAt(0, 1.5, 0, throwAtt);
+  } else if (mode === 'aimloc' && throwAtt){
     reticle.position.set(aimPos.x, 0.03, aimPos.z);
-    var sc = 0.8 + power * 0.5;
-    reticle.scale.set(sc, sc, sc);
-    /* live tilt preview: the ghost slammer above the reticle */
-    var gtilt = computeTilt();
-    ghost.visible = true;
-    ghost.position.set(aimPos.x, 1.15, aimPos.z);
-    if (gtilt.tilt > 0.02){
-      _wobAx.set(gtilt.dz, 0, -gtilt.dx).normalize();
-      ghost.quaternion.setFromAxisAngle(_wobAx, gtilt.tilt * TUNE.TILT_MAX);
-    } else {
-      ghost.quaternion.set(0, 0, 0, 1);
+    reticle.scale.set(1, 1, 1);
+    ghostAt(aimPos.x, 1.15, aimPos.z, throwAtt);
+  } else if (mode === 'power' && throwAtt){
+    reticle.position.set(aimPos.x, 0.03, aimPos.z);
+    ghostAt(aimPos.x, 1.15, aimPos.z, throwAtt);
+    if (aimT >= 0){
+      aimT += rdt;
+      power = powerCurve(aimT);
+      var pf = el('powfill');
+      pf.style.width = (power * 100).toFixed(0) + '%';
+      pf.classList.toggle('grip', gripAt(aimT));
+      var sc = 0.8 + power * 0.5;
+      reticle.scale.set(sc, sc, sc);
     }
-  } else if (ghost.visible && mode !== 'drop'){
-    ghost.visible = false;
   }
 
   /* rival telegraphs: reticle wanders to target, then slams */
