@@ -69,28 +69,26 @@ severity (wipe vs protected page).
 - Verified (v0.8.0 run): median 1.8 s impact→still, max 7.6 s, only 2 hard-cap saves in 75
   slams, caps/slam 0.40, bouncer double-hit intact, run won, no errors.
 
-## Step 2 — Throw v2 + capture-band retune  `[ ]`
-*Vision §7 (attitude, power curve, Tournament Grip). The one big tuning fight.*
+## Step 2 — Throw v2 + capture-band retune  `[x]` (v0.9.0)
+*Vision §7 (attitude, power curve, Tournament Grip).*
 
-- [ ] **Attitude gesture:** drag sets aim; the drag *direction relative to the reticle* sets
-      slammer tilt, full 360°. Flat = spread impact (wide radius, lower per-chip torque);
-      edge-leading = concentrated bite (tight radius, high torque, directional flip bias away
-      from the strike edge). Implement as an orientation on the slammer body at release +
-      direction-weighted impulse in `slamImpactAt`.
-- [ ] **Power curve:** replace the linear triangle oscillation with ramp-fast / peak / falloff
-      (golf swing). Overshoot = sloppy (accuracy noise up), never fouled.
-- [ ] **Tournament Grip band:** thin window at the peak. Inside it: small force+accuracy+torque
-      bonus and the TOURNAMENT GRIP celebration beat (feeds Step 3).
-- [ ] **Retune the 0.4–0.6 band once**, after all three land. Adjust lean-back band /
-      `IMP_ANG_POW` / pot sizes together. Vision's real-world anchor: ~12-cap stacks were the
-      ideal thwack — pot size is a tuning lever, not just difficulty.
-- [ ] Rival AI throws through the same input space (pick attitude + power with per-rival
-      style: Milo sloppy-flat, Cheater edge-precise, Rich Kid max-power).
-- Touches: input handlers, `doSlam`, `slamImpactAt`, `TUNE`, `aiPick`, AUTO driver.
-- Harness: **throw-input driver** — AUTO must sample attitude and release timing (including
-  deliberate in-band and out-of-band releases) so coverage includes the new input space.
-- Done when: flat-vs-edge is a visible, learnable tradeoff; grip releases feel earned; band
-  re-committed at 0.4–0.6 across 3 runs.
+- [x] **Attitude gesture — flick to tilt:** the drag aims; the drag's *motion at release*
+      tilts. Stop dead and let go = flat pancake; flick through the stack = edge-first bite
+      in that direction (smoothed 120 ms drag-velocity → direction + amount, deadzoned).
+      A translucent ghost slammer above the reticle previews the tilt live. Edge impacts:
+      radius shrinks, force/torque concentrate in a lane along the drive direction
+      (`EDGE_LANE/EDGE_F/EDGE_T`), push bends forward, and the tumble axis biases so chips
+      **flip away from the strike edge** — the aimed-flips layer. The slammer visibly falls
+      tilted and drives through with forward momentum after edge hits.
+- [x] **Power curve:** golf swing — smoothstep ramp to peak at 0.85 s, fast falloff, sloppy
+      sag (extra aim scatter, never fouled). `powerCurve/gripAt/sloppyAt` in TUNE terms.
+- [x] **Tournament Grip:** ~160 ms band at the peak (marked on the bar, fill brightens
+      inside it). In-band: force ×1.1, torque ×1.15, scatter ×0.3, celebration popup + SFX.
+- [x] Rival AI + harness throw through the same input space: per-rival `throwStyle`
+      (Milo flat/sloppy, Cheater edge/gripped, Rich Kid flat/max-power); AUTO driver covers
+      flat and edge, gripped and sloppy, and logs `tilt=`/`GRIP` per slam.
+- [x] Band re-committed: 0.43 / 0.38 across verification runs; edge and flat trade advantage
+      situationally rather than one dominating.
 
 ## Step 3 — Callouts  `[ ]`
 *Vision §7 (callout table). Rides entirely on events steps 1–2 emit.*

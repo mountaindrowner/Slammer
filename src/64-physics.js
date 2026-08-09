@@ -1,7 +1,21 @@
 /* ================================================================
    SLAM + PHYSICS SIM
    ================================================================ */
-function doSlam(side, x, z, pow){
+/* the power curve: golf-swing shape — fast ramp, peak, fast falloff, sloppy sag */
+function powerCurve(t){
+  var T1 = TUNE.POW_RISE;
+  if (t <= T1){ var k = t / T1; return 0.12 + 0.88 * (k * k * (3 - 2 * k)); }
+  var f = (t - T1) / TUNE.POW_FALL;
+  if (f < 1) return 1 - 0.68 * f;
+  return Math.max(0.24, 0.32 - (f - 1) * 0.05);
+}
+function gripAt(t){ return t >= TUNE.POW_RISE - TUNE.GRIP_LO && t <= TUNE.POW_RISE + TUNE.GRIP_HI; }
+function sloppyAt(t){ return clamp((t - (TUNE.POW_RISE + TUNE.POW_FALL * 0.6)) / TUNE.POW_FALL, 0, 1); }
+
+/* att = { dx, dz (attitude dir), tilt 0..1, grip, scatter } — Throw v2 */
+function doSlam(side, x, z, pow, att){
+  att = att || { dx: 0, dz: 1, tilt: 0, grip: false, scatter: 0 };
+  if (att.scatter){ x += rnd(-att.scatter, att.scatter); z += rnd(-att.scatter, att.scatter); }
   var r = clamp(Math.sqrt(x*x + z*z), 0, TUNE.ARENA_R - 0.5);
   var a = Math.atan2(z, x);
   x = Math.cos(a) * r; z = Math.sin(a) * r;
@@ -9,27 +23,37 @@ function doSlam(side, x, z, pow){
   var spec = SLAMMERS[key] || SLAMMERS.slammy;
   var mesh = makeDisc(key, 0.72, 0.24);
   mesh.position.set(x, 6, z);
+  /* attitude: tip the leading edge down toward the drive direction */
+  if (att.tilt > 0.02){
+    _wobAx.set(att.dz, 0, -att.dx).normalize();
+    mesh.quaternion.setFromAxisAngle(_wobAx, att.tilt * TUNE.TILT_MAX);
+  }
   scene.add(mesh);
-  slammer = { mesh: mesh, side: side, pow: pow, spec: spec,
+  slammer = { mesh: mesh, side: side, pow: pow, spec: spec, att: att,
     design: DESIGNS[key], bR: 0.72, bH: 0.24, m: 3,
     vy: -(TUNE.DROP_VY + pow * TUNE.DROP_VY_POW),
     hit: false, hopped: false, hopping: false, phase: 'drop',
     shadow: makeShadow(0.72) };
   reticle.visible = false;
+  ghost.visible = false;
   mode = 'drop';
   slamClock = 0;
   M.settleLogged = false;
   M.slams++;
-  tlog('SLAM ' + side + ' @(' + x.toFixed(1) + ',' + z.toFixed(1) + ') pow=' + pow.toFixed(2));
+  tlog('SLAM ' + side + ' @(' + x.toFixed(1) + ',' + z.toFixed(1) + ') pow=' + pow.toFixed(2) +
+    ' tilt=' + att.tilt.toFixed(2) + (att.grip ? ' GRIP' : ''));
 }
 
 var pendingImps = [], simStuckT = 0, stillFrames = 0, slamClock = 0;
 var STILL_N = AUTO ? 5 : 15;   /* settle rule: consecutive still frames before the tally */
-function slamImpactAt(px, pz, pow, side, spec, mult){
+function slamImpactAt(px, pz, pow, side, spec, mult, att){
   simStuckT = 0;
-  var R = (TUNE.IMP_R_BASE + pow * TUNE.IMP_R_POW) * (spec.radius || 1);
+  var tilt = (att && att.tilt) || 0;
+  var grip = !!(att && att.grip);
+  /* edge attitude concentrates the impact; grip sharpens everything */
+  var R = (TUNE.IMP_R_BASE + pow * TUNE.IMP_R_POW) * (spec.radius || 1) * (1 - TUNE.EDGE_R * tilt);
   /* house rule + slammer hooks: outgoing impulse */
-  var outMult = mult * (spec.imp || 1);
+  var outMult = mult * (spec.imp || 1) * (grip ? TUNE.GRIP_F : 1);
   if (M.rival.rule === 'mint' && side === 'rival') outMult *= 1.35;
   M.pot.forEach(function(t){
     if (t.captured) return;
@@ -42,15 +66,38 @@ function slamImpactAt(px, pz, pow, side, spec, mult){
     inMult *= (ph.imp || 1);
     var fall = 1 - d / R;
     var str = (TUNE.IMP_S_BASE + pow * TUNE.IMP_S_POW) * outMult * inMult;
-    var base = str * fall;
-    /* flip torque falls off harder than push: center hits flip, edge hits slide */
-    var angK = str * Math.pow(fall, TUNE.IMP_ANG_POW) * (spec.ang || 1) * (ph.ang || 1);
     var dx = t.mesh.position.x - px, dz = t.mesh.position.z - pz;
     var dl = Math.max(0.2, Math.sqrt(dx*dx + dz*dz));
-    var vx = (dx / dl) * base * 0.55 + rnd(-0.4, 0.4);
-    var vz = (dz / dl) * base * 0.55 + rnd(-0.4, 0.4);
+    var pushX = dx / dl, pushZ = dz / dl;
+    /* attitude: edge-leading strikes bite in a lane along the drive direction —
+       aligned chips get driven forward and flipped away from the strike edge */
+    var lane = 1;
+    if (tilt > 0.02 && att){
+      var c = Math.max(0, (dx * att.dx + dz * att.dz) / dl);
+      lane = Math.pow(c, TUNE.EDGE_LANE);
+      var bend = tilt * 0.7;
+      pushX = pushX * (1 - bend) + att.dx * bend;
+      pushZ = pushZ * (1 - bend) + att.dz * bend;
+      var pl = Math.sqrt(pushX * pushX + pushZ * pushZ) || 1;
+      pushX /= pl; pushZ /= pl;
+    }
+    var laneF = (1 - tilt) + tilt * lane * TUNE.EDGE_F;
+    var laneT = (1 - tilt) + tilt * lane * TUNE.EDGE_T;
+    var base = str * fall * laneF;
+    /* flip torque falls off harder than push: center hits flip, edge hits slide */
+    var angK = str * Math.pow(fall, TUNE.IMP_ANG_POW) * (spec.ang || 1) * (ph.ang || 1)
+      * laneT * (grip ? TUNE.GRIP_T : 1);
+    var vx = pushX * base * 0.55 + rnd(-0.4, 0.4);
+    var vz = pushZ * base * 0.55 + rnd(-0.4, 0.4);
     var vy = base * (0.72 + Math.random() * 0.45);
-    _axis.set(rnd(-1,1), rnd(-1,1), rnd(-1,1)).normalize().multiplyScalar(angK * 2.6 + rnd(0, 2.6));
+    /* edge strikes flip chips over a readable axis (forward, away from the
+       strike); flat strikes tumble randomly — this is the aimed-flips layer */
+    _axis.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize();
+    if (tilt > 0.02 && att){
+      _cn.set(att.dz, 0, -att.dx);
+      _axis.multiplyScalar(1 - tilt * 0.75).addScaledVector(_cn, tilt * 0.75).normalize();
+    }
+    _axis.multiplyScalar(angK * 2.6 + rnd(0, 2.6));
     var ax = _axis.x, ay = _axis.y, az = _axis.z;
     /* shockwave ripple: impulse arrives later the farther out the disc sits */
     pendingImps.push({ delay: d * TUNE.RIPPLE, fn: (function(t2, vx2, vy2, vz2, ax2, ay2, az2){
@@ -74,7 +121,7 @@ function slamImpact(){
   flashImpact(pow);
   shockwave(s.mesh.position.x, s.mesh.position.z, (TUNE.IMP_R_BASE + pow * TUNE.IMP_R_POW) * (s.spec.radius || 1));
   if (!AUTO){ timeScale = 0.07; tsHold = 0.1; }  /* hitstop */
-  slamImpactAt(s.mesh.position.x, s.mesh.position.z, pow, s.side, s.spec, 1);
+  slamImpactAt(s.mesh.position.x, s.mesh.position.z, pow, s.side, s.spec, 1, s.att);
   if (s.spec.fx === 'bounce' && !s.hopped){
     s.hopped = true; s.hopping = true;
     s.phase = 'hop';
@@ -90,9 +137,16 @@ function slamImpact(){
 function launchSlammerBody(s){
   s.hopping = false;
   s.phase = 'sim';
-  s.vel = new THREE.Vector3(rnd(-1.2, 1.2), 2.4 + s.pow * 2.6, rnd(-1.2, 1.2));
+  /* an edge-first slam drives through: the slammer carries forward momentum
+     and rolls; a flat slam rebounds straight up */
+  var att = s.att || {}, tilt = att.tilt || 0;
+  var drive = tilt * (2 + s.pow * 3);
+  s.vel = new THREE.Vector3(
+    rnd(-1.2, 1.2) * (1 - tilt) + (att.dx || 0) * drive,
+    (2.4 + s.pow * 2.6) * (1 - tilt * 0.45),
+    rnd(-1.2, 1.2) * (1 - tilt) + (att.dz || 0) * drive);
   s.angVel = new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize()
-    .multiplyScalar(3 + s.pow * 6);
+    .multiplyScalar((3 + s.pow * 6) * (1 + tilt * 0.5));
   s.settled = false; s.settling = null; s.disturbed = true;
 }
 function slamRestY(s){

@@ -81,6 +81,12 @@ var reticle = new THREE.Mesh(
   new THREE.MeshBasicMaterial({ color: 0x7fd9c0, transparent: true, opacity: 0.9, depthWrite: false }));
 reticle.rotation.x = -Math.PI/2; reticle.position.y = 0.03; reticle.visible = false;
 scene.add(reticle);
+/* attitude ghost: previews the slammer's tilt above the reticle during aim */
+var ghost = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.72, 0.72, 0.07, 20),
+  new THREE.MeshBasicMaterial({ color: 0xf5b93d, transparent: true, opacity: 0.3, depthWrite: false }));
+ghost.visible = false;
+scene.add(ghost);
 
 /* ---------- viewport: the viewport lies at load time ---------- */
 var camShake = 0, camPunch = 0, camD = 14;

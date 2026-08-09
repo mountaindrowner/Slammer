@@ -11,13 +11,38 @@ function pointerToGround(ev){
   raycaster.setFromCamera(_ndc, camera);
   return raycaster.ray.intersectPlane(groundPlane, _hit) ? _hit : null;
 }
+/* Throw v2 gesture: the drag aims; the drag's *motion* at release tilts.
+   Stop dead on the target and let go = flat pancake. Flick through the
+   stack and release mid-motion = edge-first bite in that direction. */
+var aimTrail = [];
+function trailPush(x, z){
+  aimTrail.push({ x: x, z: z, t: performance.now() });
+  if (aimTrail.length > 10) aimTrail.shift();
+}
+function computeTilt(){
+  /* smoothed drag velocity over the last ~120 ms of motion */
+  var now = performance.now(), a = null, b = null;
+  for (var i = 0; i < aimTrail.length; i++){
+    if (now - aimTrail[i].t <= 120){ a = aimTrail[i]; break; }
+  }
+  b = aimTrail[aimTrail.length - 1];
+  if (!a || !b || a === b || now - b.t > 90) return { dx: 0, dz: 1, tilt: 0 };
+  var dt = (b.t - a.t) / 1000;
+  if (dt < 0.016) return { dx: 0, dz: 1, tilt: 0 };
+  var vx = (b.x - a.x) / dt, vz = (b.z - a.z) / dt;
+  var sp = Math.sqrt(vx * vx + vz * vz);
+  if (sp < 1.5) return { dx: 0, dz: 1, tilt: 0 };
+  return { dx: vx / sp, dz: vz / sp, tilt: clamp((sp - 1.5) / TUNE.TILT_SPEED, 0, 1) };
+}
 el('gl').addEventListener('pointerdown', function(ev){
   audioInit();
   if (!M || M.turn !== 'you' || mode !== 'idle') return;
   var p = pointerToGround(ev);
   if (!p) return;
   mode = 'aim'; aimT = 0;
+  aimTrail.length = 0;
   aimPos.x = p.x; aimPos.z = p.z;
+  trailPush(p.x, p.z);
   reticle.material.color.set(0x7fd9c0);
   reticle.visible = true;
   el('powwrap').style.visibility = 'visible';
@@ -25,12 +50,22 @@ el('gl').addEventListener('pointerdown', function(ev){
 el('gl').addEventListener('pointermove', function(ev){
   if (mode !== 'aim') return;
   var p = pointerToGround(ev);
-  if (p){ aimPos.x = p.x; aimPos.z = p.z; }
+  if (p){ aimPos.x = p.x; aimPos.z = p.z; trailPush(p.x, p.z); }
 });
 window.addEventListener('pointerup', function(){
   if (mode !== 'aim') return;
   el('powwrap').style.visibility = 'hidden';
-  doSlam('you', aimPos.x, aimPos.z, clamp(power, 0.08, 1));
+  el('powfill').classList.remove('grip');
+  var att = computeTilt();
+  att.grip = gripAt(aimT);
+  var slop = sloppyAt(aimT);
+  att.scatter = TUNE.SCATTER * (att.grip ? 0.3 : 1) + slop * TUNE.SCATTER_SLOPPY;
+  var p = powerCurve(aimT);
+  if (att.grip){
+    popupAt3D(new THREE.Vector3(aimPos.x, 0.5, aimPos.z), 'TOURNAMENT GRIP!', '#f5b93d');
+    sfxGrip();
+  }
+  doSlam('you', aimPos.x, aimPos.z, clamp(p, 0.08, 1), att);
 });
 
 /* ---------- buttons ---------- */

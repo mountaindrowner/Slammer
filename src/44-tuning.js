@@ -21,7 +21,21 @@ var TUNE = {
   IMP_ANG_POW: 1.6,    // flip torque falloff exponent (center hits flip, edge hits slide)
   RIPPLE: 0.02,        // impact shockwave delay per unit distance (s)
   TIP: 18,             // gravity torque tipping a leaning chip flat (rad/s^2 at full lean)
-  POW_HZ: 1.4,         // power bar oscillation per second
+  /* --- Throw v2: the three-layer skill (attitude / power curve / grip) --- */
+  POW_RISE: 0.85,      // seconds to the power curve's peak (golf-swing ramp)
+  POW_FALL: 0.6,       // seconds from peak down to the sloppy sag
+  GRIP_LO: 0.10,       // Tournament Grip band: seconds before the peak...
+  GRIP_HI: 0.06,       // ...and after it
+  GRIP_F: 1.1,         // grip: force bonus
+  GRIP_T: 1.15,        // grip: flip-torque bonus
+  TILT_MAX: 1.1,       // max slammer tilt in radians (~63 deg, edge-leading)
+  TILT_SPEED: 9,       // world-units/s of drag speed for full tilt
+  EDGE_LANE: 2.2,      // alignment exponent: how narrow the edge strike lane is
+  EDGE_R: 0.35,        // radius shrink at full edge (x(1 - EDGE_R*tilt))
+  EDGE_F: 1.5,         // force multiplier for chips in the lane at full edge
+  EDGE_T: 1.8,         // flip-torque multiplier in the lane at full edge
+  SCATTER: 0.2,        // base aim scatter (world units); grip cuts it, sloppy adds
+  SCATTER_SLOPPY: 0.55,// extra scatter when released past the falloff
   WHOOPEE_MS: 450,     // detonation delay (the beat sells the joke)
   WHOOPEE_R: 1.7,
   MECHA_R: 1.3,

@@ -108,8 +108,11 @@
   .mapnode .st{font-size:10px;opacity:.7}
   .mapnode.cur .st{color:var(--pop);opacity:1}
   #powwrap{height:20px;background:#1d1630;border:3px solid #000;border-radius:10px;overflow:hidden;
-    box-shadow:3px 3px 0 #000;visibility:hidden}
+    box-shadow:3px 3px 0 #000;visibility:hidden;position:relative}
   #powfill{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--pop),var(--pink))}
+  #powfill.grip{filter:brightness(1.6) saturate(1.3)}
+  #gripband{position:absolute;left:91%;width:9%;top:0;bottom:0;
+    background:rgba(245,185,61,.3);border-left:2px solid var(--pop);pointer-events:none}
   #hint{font-size:11px;opacity:.75;text-align:center;margin-top:5px}
 
   #banner{position:fixed;left:0;right:0;top:42%;text-align:center;z-index:25;pointer-events:none;
@@ -183,8 +186,8 @@
       <div id="yourcaps"></div>
     </div>
     <div id="pouch"></div>
-    <div id="powwrap"><div id="powfill"></div></div>
-    <div id="hint">hold &amp; drag to aim — release to slam</div>
+    <div id="powwrap"><div id="powfill"></div><div id="gripband"></div></div>
+    <div id="hint">drag to aim · flick to tilt · release at the peak</div>
   </div>
 </div>
 <div id="banner"></div>
@@ -252,7 +255,7 @@
 /* ================================================================
    SLAMMERS — playing-for-keeps tazo roguelite (proof of concept)
    ================================================================ */
-var VERSION = '0.8.0';
+var VERSION = '0.9.0';
 var AUTO = /[?&]auto=1/.test(location.search);
 
 /* ---------- diagnostics: breadcrumbs, error banner, version ---------- */
@@ -299,7 +302,21 @@ var TUNE = {
   IMP_ANG_POW: 1.6,    // flip torque falloff exponent (center hits flip, edge hits slide)
   RIPPLE: 0.02,        // impact shockwave delay per unit distance (s)
   TIP: 18,             // gravity torque tipping a leaning chip flat (rad/s^2 at full lean)
-  POW_HZ: 1.4,         // power bar oscillation per second
+  /* --- Throw v2: the three-layer skill (attitude / power curve / grip) --- */
+  POW_RISE: 0.85,      // seconds to the power curve's peak (golf-swing ramp)
+  POW_FALL: 0.6,       // seconds from peak down to the sloppy sag
+  GRIP_LO: 0.10,       // Tournament Grip band: seconds before the peak...
+  GRIP_HI: 0.06,       // ...and after it
+  GRIP_F: 1.1,         // grip: force bonus
+  GRIP_T: 1.15,        // grip: flip-torque bonus
+  TILT_MAX: 1.1,       // max slammer tilt in radians (~63 deg, edge-leading)
+  TILT_SPEED: 9,       // world-units/s of drag speed for full tilt
+  EDGE_LANE: 2.2,      // alignment exponent: how narrow the edge strike lane is
+  EDGE_R: 0.35,        // radius shrink at full edge (x(1 - EDGE_R*tilt))
+  EDGE_F: 1.5,         // force multiplier for chips in the lane at full edge
+  EDGE_T: 1.8,         // flip-torque multiplier in the lane at full edge
+  SCATTER: 0.2,        // base aim scatter (world units); grip cuts it, sloppy adds
+  SCATTER_SLOPPY: 0.55,// extra scatter when released past the falloff
   WHOOPEE_MS: 450,     // detonation delay (the beat sells the joke)
   WHOOPEE_R: 1.7,
   MECHA_R: 1.3,
@@ -485,18 +502,21 @@ var DESIGNS = {
 var RIVALS = [
   { key:'milo', name:'MILO', face:'face_milo', accent:'#8fd97a', turf:'THE SIDEWALK',
     ante:2, acc:0.45, powLo:0.45, powHi:0.75, slammer:'slammy', rule:null, need:null,
+    throwStyle:{ edge:0.2, grip:0.12 },
     bust:{ skin:0xf2c99a, cap:0x3fae4e, jacket:0x4e6a3c, style:'cap' },
     binder:['feather','duck','star','skull','rubber','pizza'],
     demand:'"2-for-2. winner keeps \'em. no crying."',
     barks:{ hit:'juice box power!!', ouch:'hey!! that one\'s mine!!', win:'told ya!! TOLD YA!!', lose:'i\'m telling my mom.' } },
   { key:'cheater', name:'THE CHEATER', face:'face_cheater', accent:'#e0bd63', turf:'THE SCHOOLYARD',
     ante:3, acc:0.97, powLo:0.5, powHi:0.7, slammer:'drill', rule:null, need:'rare',
+    throwStyle:{ edge:0.85, grip:0.65 },
     bust:{ skin:0xe2a875, cap:0x2b4bd4, jacket:0x3a3f52, style:'side' },
     binder:['gum','vhs','double','skull','alien','hypno','star'],
     demand:'"3-for-3, and at least one shiny. trust me."',
     barks:{ hit:'house always wins.', ouch:'that one didn\'t count.', win:'better luck never.', lose:'this game is RIGGED!!' } },
   { key:'richkid', name:'THE RICH KID', face:'face_richkid', accent:'#7fd9c0', turf:'THE CUL-DE-SAC',
     ante:3, acc:0.75, powLo:0.75, powHi:1.0, slammer:'metal', rule:'mint', need:'best',
+    throwStyle:{ edge:0.25, grip:0.35 },
     ruleName:'MINT CONDITION', ruleDesc:'his tazos resist flips · metal slammer',
     bust:{ skin:0xf2c99a, cap:0xe0bd4e, jacket:0x6d2f3c, style:'shades' },
     binder:['mecha','magnet','manhole','duck','vhs','hypno','alien','whoopee'],
@@ -560,6 +580,7 @@ function sfxTick(v){
   tone(210 + Math.random()*90, 0.05, 'sine', Math.min(0.07, v), 90);
 }
 function sfxFlip(){ tone(520, 0.09, 'square', 0.06, 900); }
+function sfxGrip(){ tone(660, 0.07, 'square', 0.07, 990); setTimeout(function(){ tone(990, 0.12, 'square', 0.08, 1320); }, 70); }
 function sfxBoing(){ tone(220, 0.25, 'sine', 0.1, 660); }
 function sfxBoom(){ tone(90, 0.4, 'sawtooth', 0.14, 30); }
 function sfxWin(){ tone(523,0.12,'square',0.07); setTimeout(function(){tone(659,0.12,'square',0.07);},120); setTimeout(function(){tone(784,0.2,'square',0.08);},240); }
@@ -648,6 +669,12 @@ var reticle = new THREE.Mesh(
   new THREE.MeshBasicMaterial({ color: 0x7fd9c0, transparent: true, opacity: 0.9, depthWrite: false }));
 reticle.rotation.x = -Math.PI/2; reticle.position.y = 0.03; reticle.visible = false;
 scene.add(reticle);
+/* attitude ghost: previews the slammer's tilt above the reticle during aim */
+var ghost = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.72, 0.72, 0.07, 20),
+  new THREE.MeshBasicMaterial({ color: 0xf5b93d, transparent: true, opacity: 0.3, depthWrite: false }));
+ghost.visible = false;
+scene.add(ghost);
 
 /* ---------- viewport: the viewport lies at load time ---------- */
 var camShake = 0, camPunch = 0, camD = 14;
@@ -1285,6 +1312,7 @@ function beginTurn(side){
     var pow = rnd(M.rival.powLo, M.rival.powHi);
     rivalPlan = {
       tx: pick.x, tz: pick.z, pow: pow,
+      att: aiAttitude(M.rival, pick),
       t: 0, dur: AUTO ? 0.25 : 0.9,
       sx: rnd(-2.5, 2.5), sz: rnd(-2.5, 2.5)
     };
@@ -1309,17 +1337,56 @@ function aiPick(acc){
     z: clamp(best.mesh.position.z + rnd(-spread, spread), -TUNE.ARENA_R + 0.6, TUNE.ARENA_R - 0.6)
   };
 }
+/* rivals (and the autotest player) throw through the same input space:
+   attitude + power + grip, with per-rival style */
+function aiAttitude(r, pick){
+  var style = (r && r.throwStyle) || { edge: 0.5, grip: 0.5 };
+  var att = { dx: 0, dz: 1, tilt: 0, grip: Math.random() < style.grip, scatter: 0 };
+  if (Math.random() < style.edge){
+    /* edge throw: drive from the aim point through the nearest other chip */
+    var best = null, bd = 1e9;
+    M.pot.forEach(function(t){
+      if (t.captured) return;
+      var d = hdist(t.mesh.position.x, t.mesh.position.z, pick.x, pick.z);
+      if (d > 0.25 && d < bd){ bd = d; best = t; }
+    });
+    var dx = best ? best.mesh.position.x - pick.x : rnd(-1, 1);
+    var dz = best ? best.mesh.position.z - pick.z : rnd(-1, 1);
+    var dl = Math.sqrt(dx * dx + dz * dz) || 1;
+    att.dx = dx / dl; att.dz = dz / dl;
+    att.tilt = rnd(0.55, 1);
+  }
+  return att;
+}
 function autoPlayerSlam(){
   if (!M || M.turn !== 'you' || mode !== 'idle') return;
   run.slammer = run.pouch[Math.floor(Math.random() * run.pouch.length)];
   var p = aiPick(0.82);
-  doSlam('you', p.x, p.z, rnd(0.55, 0.95));
+  /* harness throw driver: cover the whole input space — flat and edge,
+     gripped and sloppy */
+  var att = aiAttitude({ throwStyle: { edge: 0.5, grip: 0.55 } }, p);
+  att.scatter = att.grip ? 0.06 : rnd(0.1, 0.4);
+  doSlam('you', p.x, p.z, rnd(0.55, 0.95), att);
 }
 
 /* ================================================================
    SLAM + PHYSICS SIM
    ================================================================ */
-function doSlam(side, x, z, pow){
+/* the power curve: golf-swing shape — fast ramp, peak, fast falloff, sloppy sag */
+function powerCurve(t){
+  var T1 = TUNE.POW_RISE;
+  if (t <= T1){ var k = t / T1; return 0.12 + 0.88 * (k * k * (3 - 2 * k)); }
+  var f = (t - T1) / TUNE.POW_FALL;
+  if (f < 1) return 1 - 0.68 * f;
+  return Math.max(0.24, 0.32 - (f - 1) * 0.05);
+}
+function gripAt(t){ return t >= TUNE.POW_RISE - TUNE.GRIP_LO && t <= TUNE.POW_RISE + TUNE.GRIP_HI; }
+function sloppyAt(t){ return clamp((t - (TUNE.POW_RISE + TUNE.POW_FALL * 0.6)) / TUNE.POW_FALL, 0, 1); }
+
+/* att = { dx, dz (attitude dir), tilt 0..1, grip, scatter } — Throw v2 */
+function doSlam(side, x, z, pow, att){
+  att = att || { dx: 0, dz: 1, tilt: 0, grip: false, scatter: 0 };
+  if (att.scatter){ x += rnd(-att.scatter, att.scatter); z += rnd(-att.scatter, att.scatter); }
   var r = clamp(Math.sqrt(x*x + z*z), 0, TUNE.ARENA_R - 0.5);
   var a = Math.atan2(z, x);
   x = Math.cos(a) * r; z = Math.sin(a) * r;
@@ -1327,27 +1394,37 @@ function doSlam(side, x, z, pow){
   var spec = SLAMMERS[key] || SLAMMERS.slammy;
   var mesh = makeDisc(key, 0.72, 0.24);
   mesh.position.set(x, 6, z);
+  /* attitude: tip the leading edge down toward the drive direction */
+  if (att.tilt > 0.02){
+    _wobAx.set(att.dz, 0, -att.dx).normalize();
+    mesh.quaternion.setFromAxisAngle(_wobAx, att.tilt * TUNE.TILT_MAX);
+  }
   scene.add(mesh);
-  slammer = { mesh: mesh, side: side, pow: pow, spec: spec,
+  slammer = { mesh: mesh, side: side, pow: pow, spec: spec, att: att,
     design: DESIGNS[key], bR: 0.72, bH: 0.24, m: 3,
     vy: -(TUNE.DROP_VY + pow * TUNE.DROP_VY_POW),
     hit: false, hopped: false, hopping: false, phase: 'drop',
     shadow: makeShadow(0.72) };
   reticle.visible = false;
+  ghost.visible = false;
   mode = 'drop';
   slamClock = 0;
   M.settleLogged = false;
   M.slams++;
-  tlog('SLAM ' + side + ' @(' + x.toFixed(1) + ',' + z.toFixed(1) + ') pow=' + pow.toFixed(2));
+  tlog('SLAM ' + side + ' @(' + x.toFixed(1) + ',' + z.toFixed(1) + ') pow=' + pow.toFixed(2) +
+    ' tilt=' + att.tilt.toFixed(2) + (att.grip ? ' GRIP' : ''));
 }
 
 var pendingImps = [], simStuckT = 0, stillFrames = 0, slamClock = 0;
 var STILL_N = AUTO ? 5 : 15;   /* settle rule: consecutive still frames before the tally */
-function slamImpactAt(px, pz, pow, side, spec, mult){
+function slamImpactAt(px, pz, pow, side, spec, mult, att){
   simStuckT = 0;
-  var R = (TUNE.IMP_R_BASE + pow * TUNE.IMP_R_POW) * (spec.radius || 1);
+  var tilt = (att && att.tilt) || 0;
+  var grip = !!(att && att.grip);
+  /* edge attitude concentrates the impact; grip sharpens everything */
+  var R = (TUNE.IMP_R_BASE + pow * TUNE.IMP_R_POW) * (spec.radius || 1) * (1 - TUNE.EDGE_R * tilt);
   /* house rule + slammer hooks: outgoing impulse */
-  var outMult = mult * (spec.imp || 1);
+  var outMult = mult * (spec.imp || 1) * (grip ? TUNE.GRIP_F : 1);
   if (M.rival.rule === 'mint' && side === 'rival') outMult *= 1.35;
   M.pot.forEach(function(t){
     if (t.captured) return;
@@ -1360,15 +1437,38 @@ function slamImpactAt(px, pz, pow, side, spec, mult){
     inMult *= (ph.imp || 1);
     var fall = 1 - d / R;
     var str = (TUNE.IMP_S_BASE + pow * TUNE.IMP_S_POW) * outMult * inMult;
-    var base = str * fall;
-    /* flip torque falls off harder than push: center hits flip, edge hits slide */
-    var angK = str * Math.pow(fall, TUNE.IMP_ANG_POW) * (spec.ang || 1) * (ph.ang || 1);
     var dx = t.mesh.position.x - px, dz = t.mesh.position.z - pz;
     var dl = Math.max(0.2, Math.sqrt(dx*dx + dz*dz));
-    var vx = (dx / dl) * base * 0.55 + rnd(-0.4, 0.4);
-    var vz = (dz / dl) * base * 0.55 + rnd(-0.4, 0.4);
+    var pushX = dx / dl, pushZ = dz / dl;
+    /* attitude: edge-leading strikes bite in a lane along the drive direction —
+       aligned chips get driven forward and flipped away from the strike edge */
+    var lane = 1;
+    if (tilt > 0.02 && att){
+      var c = Math.max(0, (dx * att.dx + dz * att.dz) / dl);
+      lane = Math.pow(c, TUNE.EDGE_LANE);
+      var bend = tilt * 0.7;
+      pushX = pushX * (1 - bend) + att.dx * bend;
+      pushZ = pushZ * (1 - bend) + att.dz * bend;
+      var pl = Math.sqrt(pushX * pushX + pushZ * pushZ) || 1;
+      pushX /= pl; pushZ /= pl;
+    }
+    var laneF = (1 - tilt) + tilt * lane * TUNE.EDGE_F;
+    var laneT = (1 - tilt) + tilt * lane * TUNE.EDGE_T;
+    var base = str * fall * laneF;
+    /* flip torque falls off harder than push: center hits flip, edge hits slide */
+    var angK = str * Math.pow(fall, TUNE.IMP_ANG_POW) * (spec.ang || 1) * (ph.ang || 1)
+      * laneT * (grip ? TUNE.GRIP_T : 1);
+    var vx = pushX * base * 0.55 + rnd(-0.4, 0.4);
+    var vz = pushZ * base * 0.55 + rnd(-0.4, 0.4);
     var vy = base * (0.72 + Math.random() * 0.45);
-    _axis.set(rnd(-1,1), rnd(-1,1), rnd(-1,1)).normalize().multiplyScalar(angK * 2.6 + rnd(0, 2.6));
+    /* edge strikes flip chips over a readable axis (forward, away from the
+       strike); flat strikes tumble randomly — this is the aimed-flips layer */
+    _axis.set(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize();
+    if (tilt > 0.02 && att){
+      _cn.set(att.dz, 0, -att.dx);
+      _axis.multiplyScalar(1 - tilt * 0.75).addScaledVector(_cn, tilt * 0.75).normalize();
+    }
+    _axis.multiplyScalar(angK * 2.6 + rnd(0, 2.6));
     var ax = _axis.x, ay = _axis.y, az = _axis.z;
     /* shockwave ripple: impulse arrives later the farther out the disc sits */
     pendingImps.push({ delay: d * TUNE.RIPPLE, fn: (function(t2, vx2, vy2, vz2, ax2, ay2, az2){
@@ -1392,7 +1492,7 @@ function slamImpact(){
   flashImpact(pow);
   shockwave(s.mesh.position.x, s.mesh.position.z, (TUNE.IMP_R_BASE + pow * TUNE.IMP_R_POW) * (s.spec.radius || 1));
   if (!AUTO){ timeScale = 0.07; tsHold = 0.1; }  /* hitstop */
-  slamImpactAt(s.mesh.position.x, s.mesh.position.z, pow, s.side, s.spec, 1);
+  slamImpactAt(s.mesh.position.x, s.mesh.position.z, pow, s.side, s.spec, 1, s.att);
   if (s.spec.fx === 'bounce' && !s.hopped){
     s.hopped = true; s.hopping = true;
     s.phase = 'hop';
@@ -1408,9 +1508,16 @@ function slamImpact(){
 function launchSlammerBody(s){
   s.hopping = false;
   s.phase = 'sim';
-  s.vel = new THREE.Vector3(rnd(-1.2, 1.2), 2.4 + s.pow * 2.6, rnd(-1.2, 1.2));
+  /* an edge-first slam drives through: the slammer carries forward momentum
+     and rolls; a flat slam rebounds straight up */
+  var att = s.att || {}, tilt = att.tilt || 0;
+  var drive = tilt * (2 + s.pow * 3);
+  s.vel = new THREE.Vector3(
+    rnd(-1.2, 1.2) * (1 - tilt) + (att.dx || 0) * drive,
+    (2.4 + s.pow * 2.6) * (1 - tilt * 0.45),
+    rnd(-1.2, 1.2) * (1 - tilt) + (att.dz || 0) * drive);
   s.angVel = new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize()
-    .multiplyScalar(3 + s.pow * 6);
+    .multiplyScalar((3 + s.pow * 6) * (1 + tilt * 0.5));
   s.settled = false; s.settling = null; s.disturbed = true;
 }
 function slamRestY(s){
@@ -1991,13 +2098,38 @@ function pointerToGround(ev){
   raycaster.setFromCamera(_ndc, camera);
   return raycaster.ray.intersectPlane(groundPlane, _hit) ? _hit : null;
 }
+/* Throw v2 gesture: the drag aims; the drag's *motion* at release tilts.
+   Stop dead on the target and let go = flat pancake. Flick through the
+   stack and release mid-motion = edge-first bite in that direction. */
+var aimTrail = [];
+function trailPush(x, z){
+  aimTrail.push({ x: x, z: z, t: performance.now() });
+  if (aimTrail.length > 10) aimTrail.shift();
+}
+function computeTilt(){
+  /* smoothed drag velocity over the last ~120 ms of motion */
+  var now = performance.now(), a = null, b = null;
+  for (var i = 0; i < aimTrail.length; i++){
+    if (now - aimTrail[i].t <= 120){ a = aimTrail[i]; break; }
+  }
+  b = aimTrail[aimTrail.length - 1];
+  if (!a || !b || a === b || now - b.t > 90) return { dx: 0, dz: 1, tilt: 0 };
+  var dt = (b.t - a.t) / 1000;
+  if (dt < 0.016) return { dx: 0, dz: 1, tilt: 0 };
+  var vx = (b.x - a.x) / dt, vz = (b.z - a.z) / dt;
+  var sp = Math.sqrt(vx * vx + vz * vz);
+  if (sp < 1.5) return { dx: 0, dz: 1, tilt: 0 };
+  return { dx: vx / sp, dz: vz / sp, tilt: clamp((sp - 1.5) / TUNE.TILT_SPEED, 0, 1) };
+}
 el('gl').addEventListener('pointerdown', function(ev){
   audioInit();
   if (!M || M.turn !== 'you' || mode !== 'idle') return;
   var p = pointerToGround(ev);
   if (!p) return;
   mode = 'aim'; aimT = 0;
+  aimTrail.length = 0;
   aimPos.x = p.x; aimPos.z = p.z;
+  trailPush(p.x, p.z);
   reticle.material.color.set(0x7fd9c0);
   reticle.visible = true;
   el('powwrap').style.visibility = 'visible';
@@ -2005,12 +2137,22 @@ el('gl').addEventListener('pointerdown', function(ev){
 el('gl').addEventListener('pointermove', function(ev){
   if (mode !== 'aim') return;
   var p = pointerToGround(ev);
-  if (p){ aimPos.x = p.x; aimPos.z = p.z; }
+  if (p){ aimPos.x = p.x; aimPos.z = p.z; trailPush(p.x, p.z); }
 });
 window.addEventListener('pointerup', function(){
   if (mode !== 'aim') return;
   el('powwrap').style.visibility = 'hidden';
-  doSlam('you', aimPos.x, aimPos.z, clamp(power, 0.08, 1));
+  el('powfill').classList.remove('grip');
+  var att = computeTilt();
+  att.grip = gripAt(aimT);
+  var slop = sloppyAt(aimT);
+  att.scatter = TUNE.SCATTER * (att.grip ? 0.3 : 1) + slop * TUNE.SCATTER_SLOPPY;
+  var p = powerCurve(aimT);
+  if (att.grip){
+    popupAt3D(new THREE.Vector3(aimPos.x, 0.5, aimPos.z), 'TOURNAMENT GRIP!', '#f5b93d');
+    sfxGrip();
+  }
+  doSlam('you', aimPos.x, aimPos.z, clamp(p, 0.08, 1), att);
 });
 
 /* ---------- buttons ---------- */
@@ -2128,14 +2270,28 @@ function loop(ts){
     if (coin.settled) resolveToss();
   }
 
-  /* aim + power bar */
+  /* aim + power curve + attitude ghost */
   if (mode === 'aim'){
     aimT += rdt;
-    power = 1 - Math.abs((aimT * TUNE.POW_HZ) % 2 - 1);
-    el('powfill').style.width = (power * 100).toFixed(0) + '%';
+    power = powerCurve(aimT);
+    var pf = el('powfill');
+    pf.style.width = (power * 100).toFixed(0) + '%';
+    pf.classList.toggle('grip', gripAt(aimT));
     reticle.position.set(aimPos.x, 0.03, aimPos.z);
     var sc = 0.8 + power * 0.5;
     reticle.scale.set(sc, sc, sc);
+    /* live tilt preview: the ghost slammer above the reticle */
+    var gtilt = computeTilt();
+    ghost.visible = true;
+    ghost.position.set(aimPos.x, 1.15, aimPos.z);
+    if (gtilt.tilt > 0.02){
+      _wobAx.set(gtilt.dz, 0, -gtilt.dx).normalize();
+      ghost.quaternion.setFromAxisAngle(_wobAx, gtilt.tilt * TUNE.TILT_MAX);
+    } else {
+      ghost.quaternion.set(0, 0, 0, 1);
+    }
+  } else if (ghost.visible && mode !== 'drop'){
+    ghost.visible = false;
   }
 
   /* rival telegraphs: reticle wanders to target, then slams */
@@ -2150,7 +2306,7 @@ function loop(ts){
     reticle.scale.set(1, 1, 1);
     if (k >= 1){
       var rp = rivalPlan; rivalPlan = null;
-      doSlam('rival', rp.tx, rp.tz, rp.pow);
+      doSlam('rival', rp.tx, rp.tz, rp.pow, rp.att);
     }
   }
 
@@ -2188,7 +2344,7 @@ function loop(ts){
           sfxThud(sl.pow * 0.6);
           camShake = 0.25;
           shockwave(sl.mesh.position.x, sl.mesh.position.z, 1.5);
-          slamImpactAt(sl.mesh.position.x, sl.mesh.position.z, sl.pow * 0.8, sl.side, sl.spec, 0.55);
+          slamImpactAt(sl.mesh.position.x, sl.mesh.position.z, sl.pow * 0.8, sl.side, sl.spec, 0.55, sl.att);
           launchSlammerBody(sl);
           tlog('  hop impact');
         }

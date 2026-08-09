@@ -38,14 +38,28 @@ function loop(ts){
     if (coin.settled) resolveToss();
   }
 
-  /* aim + power bar */
+  /* aim + power curve + attitude ghost */
   if (mode === 'aim'){
     aimT += rdt;
-    power = 1 - Math.abs((aimT * TUNE.POW_HZ) % 2 - 1);
-    el('powfill').style.width = (power * 100).toFixed(0) + '%';
+    power = powerCurve(aimT);
+    var pf = el('powfill');
+    pf.style.width = (power * 100).toFixed(0) + '%';
+    pf.classList.toggle('grip', gripAt(aimT));
     reticle.position.set(aimPos.x, 0.03, aimPos.z);
     var sc = 0.8 + power * 0.5;
     reticle.scale.set(sc, sc, sc);
+    /* live tilt preview: the ghost slammer above the reticle */
+    var gtilt = computeTilt();
+    ghost.visible = true;
+    ghost.position.set(aimPos.x, 1.15, aimPos.z);
+    if (gtilt.tilt > 0.02){
+      _wobAx.set(gtilt.dz, 0, -gtilt.dx).normalize();
+      ghost.quaternion.setFromAxisAngle(_wobAx, gtilt.tilt * TUNE.TILT_MAX);
+    } else {
+      ghost.quaternion.set(0, 0, 0, 1);
+    }
+  } else if (ghost.visible && mode !== 'drop'){
+    ghost.visible = false;
   }
 
   /* rival telegraphs: reticle wanders to target, then slams */
@@ -60,7 +74,7 @@ function loop(ts){
     reticle.scale.set(1, 1, 1);
     if (k >= 1){
       var rp = rivalPlan; rivalPlan = null;
-      doSlam('rival', rp.tx, rp.tz, rp.pow);
+      doSlam('rival', rp.tx, rp.tz, rp.pow, rp.att);
     }
   }
 
@@ -98,7 +112,7 @@ function loop(ts){
           sfxThud(sl.pow * 0.6);
           camShake = 0.25;
           shockwave(sl.mesh.position.x, sl.mesh.position.z, 1.5);
-          slamImpactAt(sl.mesh.position.x, sl.mesh.position.z, sl.pow * 0.8, sl.side, sl.spec, 0.55);
+          slamImpactAt(sl.mesh.position.x, sl.mesh.position.z, sl.pow * 0.8, sl.side, sl.spec, 0.55, sl.att);
           launchSlammerBody(sl);
           tlog('  hop impact');
         }

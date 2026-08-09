@@ -143,6 +143,7 @@ function beginTurn(side){
     var pow = rnd(M.rival.powLo, M.rival.powHi);
     rivalPlan = {
       tx: pick.x, tz: pick.z, pow: pow,
+      att: aiAttitude(M.rival, pick),
       t: 0, dur: AUTO ? 0.25 : 0.9,
       sx: rnd(-2.5, 2.5), sz: rnd(-2.5, 2.5)
     };
@@ -167,10 +168,35 @@ function aiPick(acc){
     z: clamp(best.mesh.position.z + rnd(-spread, spread), -TUNE.ARENA_R + 0.6, TUNE.ARENA_R - 0.6)
   };
 }
+/* rivals (and the autotest player) throw through the same input space:
+   attitude + power + grip, with per-rival style */
+function aiAttitude(r, pick){
+  var style = (r && r.throwStyle) || { edge: 0.5, grip: 0.5 };
+  var att = { dx: 0, dz: 1, tilt: 0, grip: Math.random() < style.grip, scatter: 0 };
+  if (Math.random() < style.edge){
+    /* edge throw: drive from the aim point through the nearest other chip */
+    var best = null, bd = 1e9;
+    M.pot.forEach(function(t){
+      if (t.captured) return;
+      var d = hdist(t.mesh.position.x, t.mesh.position.z, pick.x, pick.z);
+      if (d > 0.25 && d < bd){ bd = d; best = t; }
+    });
+    var dx = best ? best.mesh.position.x - pick.x : rnd(-1, 1);
+    var dz = best ? best.mesh.position.z - pick.z : rnd(-1, 1);
+    var dl = Math.sqrt(dx * dx + dz * dz) || 1;
+    att.dx = dx / dl; att.dz = dz / dl;
+    att.tilt = rnd(0.55, 1);
+  }
+  return att;
+}
 function autoPlayerSlam(){
   if (!M || M.turn !== 'you' || mode !== 'idle') return;
   run.slammer = run.pouch[Math.floor(Math.random() * run.pouch.length)];
   var p = aiPick(0.82);
-  doSlam('you', p.x, p.z, rnd(0.55, 0.95));
+  /* harness throw driver: cover the whole input space — flat and edge,
+     gripped and sloppy */
+  var att = aiAttitude({ throwStyle: { edge: 0.5, grip: 0.55 } }, p);
+  att.scatter = att.grip ? 0.06 : rnd(0.1, 0.4);
+  doSlam('you', p.x, p.z, rnd(0.55, 0.95), att);
 }
 
