@@ -24,6 +24,8 @@
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--ink);color:#fff;
     font-family:var(--body);user-select:none;-webkit-user-select:none}
+  /* dusk sky behind the transparent WebGL canvas */
+  body{background:linear-gradient(180deg,#0d0620 0%,#2a1150 16%,#6b2a7a 23%,#e0527c 27%,#ff9a55 29%,#3a1c52 34%,#14082b 62%,#14082b 100%)}
   /* canvas is a replaced element: inset alone doesn't stretch it — explicit size required */
   #gl{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block}
   .badge{position:fixed;left:8px;bottom:6px;font-size:10px;opacity:.45;z-index:60;pointer-events:none}
@@ -194,7 +196,7 @@
 /* ================================================================
    SLAMMERS — playing-for-keeps tazo roguelite (proof of concept)
    ================================================================ */
-var VERSION = '0.1.0';
+var VERSION = '0.2.0';
 var AUTO = /[?&]auto=1/.test(location.search);
 
 /* ---------- diagnostics: breadcrumbs, error banner, version ---------- */
@@ -242,7 +244,7 @@ var TUNE = {
   RUBBER_SAVE: 0.45,   // chance a flipped rubber tazo re-flips back
   ARENA_R: 3.6,
   TAZO_R: 0.5,
-  TAZO_H: 0.07
+  TAZO_H: 0.09
 };
 
 /* ================================================================
@@ -560,27 +562,63 @@ function sfxLose(){ tone(300,0.2,'sawtooth',0.08,150); setTimeout(function(){ton
    THREE SETUP — mobile-webview budget (see CLAUDE.md)
    ================================================================ */
 mark('three-setup');
-var renderer = new THREE.WebGLRenderer({ canvas: el('gl'), antialias: false });
+var renderer = new THREE.WebGLRenderer({ canvas: el('gl'), antialias: false, alpha: true });
 renderer.setPixelRatio(1);
 var scene = new THREE.Scene();
-scene.background = new THREE.Color(0x14082b);
 var camera = new THREE.PerspectiveCamera(55, 1, 1, 80);
-scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-var sun = new THREE.DirectionalLight(0xffffff, 0.85);
-sun.position.set(3, 8, 4);
+/* dusk light rig: cool sky bounce + warm low sun so disc rims actually shade */
+scene.add(new THREE.HemisphereLight(0x8f7bff, 0x38254e, 0.8));
+var sun = new THREE.DirectionalLight(0xffd9b0, 0.95);
+sun.position.set(-4, 5, 3);
 scene.add(sun);
 
-/* floor + chalk ring (lifted, no depth write — z-fight guard) */
+/* floor: asphalt + chalk baked into one texture (no decal z-fights) */
+var FLOOR_R = TUNE.ARENA_R + 2.4;
+function makeFloorTexture(){
+  var cv = document.createElement('canvas'); cv.width = cv.height = 512;
+  var c = cv.getContext('2d');
+  c.fillStyle = '#342a55'; c.fillRect(0, 0, 512, 512);
+  for (var i = 0; i < 1100; i++){
+    c.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.14)';
+    c.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+  }
+  var px = 256 / FLOOR_R; /* px per world unit */
+  c.strokeStyle = 'rgba(240,235,250,0.28)'; c.lineWidth = 11;
+  c.beginPath(); c.arc(258, 254, TUNE.ARENA_R * px + 2, 0, 6.3); c.stroke();
+  c.strokeStyle = 'rgba(240,235,250,0.8)'; c.lineWidth = 5;
+  c.beginPath(); c.arc(256, 256, TUNE.ARENA_R * px, 0, 6.3); c.stroke();
+  /* chalk graffiti */
+  c.strokeStyle = 'rgba(240,235,250,0.4)'; c.lineWidth = 4; c.lineCap = 'round';
+  function X(x, y){ c.beginPath(); c.moveTo(x-9,y-9); c.lineTo(x+9,y+9); c.moveTo(x+9,y-9); c.lineTo(x-9,y+9); c.stroke(); }
+  X(452, 150); X(72, 340); X(420, 420);
+  c.strokeRect(30, 396, 36, 36); c.strokeRect(30, 432, 36, 36); c.strokeRect(66, 414, 36, 36);
+  c.font = 'bold 30px "Comic Sans MS", cursive';
+  c.fillStyle = 'rgba(240,235,250,0.55)';
+  c.save(); c.translate(256, 52); c.rotate(-0.06); c.fillText('4 KEEPS', -62, 0); c.restore();
+  return new THREE.CanvasTexture(cv);
+}
 var floor = new THREE.Mesh(
-  new THREE.CircleGeometry(TUNE.ARENA_R + 1.6, 36),
-  new THREE.MeshLambertMaterial({ color: 0x2b2145 }));
+  new THREE.CircleGeometry(FLOOR_R, 40),
+  new THREE.MeshLambertMaterial({ map: makeFloorTexture() }));
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
-var ring = new THREE.Mesh(
-  new THREE.RingGeometry(TUNE.ARENA_R - 0.07, TUNE.ARENA_R + 0.07, 48),
-  new THREE.MeshBasicMaterial({ color: 0xe9e4f0, transparent: true, opacity: 0.75, depthWrite: false }));
-ring.rotation.x = -Math.PI/2; ring.position.y = 0.02;
-scene.add(ring);
+/* curb wall around the court */
+var curb = new THREE.Mesh(
+  new THREE.CylinderGeometry(TUNE.ARENA_R + 0.42, TUNE.ARENA_R + 0.42, 0.22, 40, 1, true),
+  new THREE.MeshLambertMaterial({ color: 0x4a3d70, side: THREE.DoubleSide }));
+curb.position.y = 0.11;
+scene.add(curb);
+/* sidewalk props — cheap primitives, parallax anchors for depth */
+function prop(geo, color, x, y, z, ry){
+  var m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: color }));
+  m.position.set(x, y, z); m.rotation.y = ry || 0;
+  scene.add(m); return m;
+}
+prop(new THREE.CylinderGeometry(0.3, 0.34, 0.72, 10), 0xe04338, 5.0, 0.36, -1.2);   /* hydrant */
+prop(new THREE.CylinderGeometry(0.15, 0.15, 0.2, 8), 0xe04338, 5.0, 0.82, -1.2);
+prop(new THREE.BoxGeometry(0.85, 0.85, 0.85), 0x3468c9, -4.7, 0.43, 1.8, 0.5);      /* milk crate */
+prop(new THREE.CylinderGeometry(0.15, 0.15, 0.42, 10), 0xd8dee8, 4.35, 0.21, 2.75); /* soda can */
+prop(new THREE.BoxGeometry(0.4, 0.07, 0.1), 0xf0ebfa, 2.6, 0.04, -4.2, 0.7);        /* chalk stick */
 
 /* aim reticle */
 var reticle = new THREE.Mesh(
@@ -590,7 +628,9 @@ reticle.rotation.x = -Math.PI/2; reticle.position.y = 0.03; reticle.visible = fa
 scene.add(reticle);
 
 /* ---------- viewport: the viewport lies at load time ---------- */
-var camShake = 0;
+var camShake = 0, camPunch = 0, camD = 14;
+var CAM_EL = 42 * Math.PI / 180;  /* lower angle than top-down: foreshortening sells depth */
+var camT = new THREE.Vector3(0, 0, -0.2), _camV = new THREE.Vector3();
 function sizeNow(){
   var w = el('gl').clientWidth || window.innerWidth;
   var h = el('gl').clientHeight || window.innerHeight;
@@ -604,11 +644,20 @@ function sizeNow(){
 function fitCamera(){
   var vHalf = camera.fov * Math.PI / 360;
   var hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
-  var need = TUNE.ARENA_R + 1.0;
-  var d = clamp(need / Math.tan(Math.min(vHalf, hHalf)), 9, 38);
-  var el_ = 57 * Math.PI / 180;
-  camera.position.set(0, d * Math.sin(el_), d * Math.cos(el_));
-  camera.lookAt(0, 0, -0.4);
+  var need = TUNE.ARENA_R + 1.35;
+  camD = clamp(need / Math.tan(Math.min(vHalf, hHalf)), 9, 38);
+  placeCamera(0);
+}
+function placeCamera(tms){
+  var az = Math.sin(tms * 0.00022) * 0.06; /* idle sway: parallax is the 3D cue */
+  var d = camD - camPunch;
+  camera.position.set(
+    camT.x + d * Math.cos(CAM_EL) * Math.sin(az),
+    d * Math.sin(CAM_EL),
+    camT.z + d * Math.cos(CAM_EL) * Math.cos(az));
+  camera.position.x += rnd(-camShake, camShake) * 0.35;
+  camera.position.y += rnd(-camShake, camShake) * 0.35;
+  camera.lookAt(camT.x, 0, camT.z);
 }
 var rszTimer = null;
 window.addEventListener('resize', function(){
@@ -655,6 +704,33 @@ function makeDisc(key, radius, height, rimColor){
   var rim = new THREE.MeshLambertMaterial({ color: rimColor || 0x0e0620 });
   return new THREE.Mesh(geo, [rim, face, back]);
 }
+
+/* blob shadows — the cheap depth cue (no shadow maps in mobile webviews) */
+var shadowTex = (function(){
+  var cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  var c = cv.getContext('2d');
+  var g = c.createRadialGradient(32, 32, 4, 32, 32, 30);
+  g.addColorStop(0, 'rgba(5,0,15,0.55)'); g.addColorStop(1, 'rgba(5,0,15,0)');
+  c.fillStyle = g; c.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(cv);
+})();
+var shadowN = 0;
+function makeShadow(r){
+  var m = new THREE.Mesh(
+    new THREE.PlaneGeometry(r * 2.6, r * 2.6),
+    new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+  m.rotation.x = -Math.PI/2;
+  m.position.y = 0.012 + (shadowN++ % 24) * 0.0016; /* stagger so stacked shadows don't z-fight */
+  scene.add(m);
+  return m;
+}
+function syncShadow(sh, p){
+  sh.position.x = p.x; sh.position.z = p.z;
+  var h = Math.max(0, p.y), s = 1 + h * 0.16;
+  sh.scale.set(s, s, 1);
+  sh.material.opacity = clamp(1.1 / (1 + h * 0.7), 0.12, 1);
+}
+function dropShadow(o){ if (o.shadow){ scene.remove(o.shadow); o.shadow = null; } }
 
 /* ================================================================
    RUN + MATCH STATE
@@ -808,7 +884,8 @@ function startMatch(){
     M.pot.push({
       key: s.key, design: DESIGNS[s.key], stakedBy: s.stakedBy, entry: s.entry,
       mesh: mesh, vel: new THREE.Vector3(), angVel: new THREE.Vector3(),
-      settled: true, captured: null, disturbed: false
+      settled: true, captured: null, disturbed: false,
+      shadow: makeShadow(TUNE.TAZO_R)
     });
   });
   /* HUD */
@@ -886,7 +963,8 @@ function doSlam(side, x, z, pow){
   var mesh = makeDisc(key, 0.72, 0.12, side === 'you' ? 0x8a6d00 : 0x333c48);
   mesh.position.set(x, 6, z);
   scene.add(mesh);
-  slammer = { mesh: mesh, side: side, pow: pow, vy: -(TUNE.DROP_VY + pow * TUNE.DROP_VY_POW), hit: false, life: 0 };
+  slammer = { mesh: mesh, side: side, pow: pow, vy: -(TUNE.DROP_VY + pow * TUNE.DROP_VY_POW), hit: false, life: 0,
+    shadow: makeShadow(0.72) };
   reticle.visible = false;
   mode = 'drop';
   M.slams++;
@@ -902,6 +980,7 @@ function slamImpact(){
   if (M.rival.rule === 'mint' && s.side === 'rival') outMult = 1.35;
   sfxThud(pow);
   camShake = 0.22 + 0.3 * pow;
+  camPunch = 0.7 + 0.9 * pow;
   M.pot.forEach(function(t){
     if (t.captured) return;
     var d = hdist(t.mesh.position.x, t.mesh.position.z, s.mesh.position.x, s.mesh.position.z);
@@ -1009,6 +1088,7 @@ function captureTazo(t, side, chainQ){
     return;
   }
   t.captured = side;
+  dropShadow(t);
   sfxFlip();
   popupAt3D(t.mesh.position, 'FLIPPED!', side === 'you' ? '#35e0e6' : '#ff2e88');
   (side === 'you' ? M.yourCaps : M.rivalCaps).push(t);
@@ -1165,7 +1245,7 @@ function endMatch(){
 
 function onResultContinue(){
   var res = M.result, r = M.rival;
-  M.pot.forEach(function(t){ scene.remove(t.mesh); });
+  M.pot.forEach(function(t){ scene.remove(t.mesh); dropShadow(t); });
   M = null;
   if (res === 'win'){
     run.rivalIdx++;
@@ -1339,6 +1419,7 @@ function loop(ts){
     slammer.mesh.position.y += slammer.vy * dt;
     slammer.mesh.rotation.z += dt * 2;
     if (slammer.life > 0.7){
+      dropShadow(slammer);
       scene.remove(slammer.mesh);
       slammer = null;
     }
@@ -1357,16 +1438,17 @@ function loop(ts){
     }
   }
 
-  /* camera shake (recompute base each frame so no drift accumulates) */
-  if (camShake > 0.005){
-    camShake *= Math.pow(0.02, dt);
-    fitCamera();
-    camera.position.x += rnd(-camShake, camShake) * 0.3;
-    camera.position.y += rnd(-camShake, camShake) * 0.3;
-  } else if (camShake > 0){
-    camShake = 0;
-    fitCamera();
-  }
+  /* blob shadows track every airborne disc */
+  if (M) M.pot.forEach(function(t){ if (t.shadow) syncShadow(t.shadow, t.mesh.position); });
+  if (slammer && slammer.shadow) syncShadow(slammer.shadow, slammer.mesh.position);
+
+  /* camera: follow the slam, punch on impact, sway for parallax */
+  _camV.set(0, 0, -0.2);
+  if (slammer){ _camV.x += slammer.mesh.position.x * 0.22; _camV.z += slammer.mesh.position.z * 0.22; }
+  camT.lerp(_camV, 1 - Math.pow(0.005, dt));
+  camPunch *= Math.pow(0.04, dt);
+  if (camShake > 0.005) camShake *= Math.pow(0.02, dt); else camShake = 0;
+  placeCamera(ts);
 
   if (!AUTO || frameN % 20 === 0) renderer.render(scene, camera);
 }
