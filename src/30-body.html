@@ -1,0 +1,120 @@
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="err"></div>
+<div class="badge" id="ver"></div>
+<div id="testlog"></div>
+
+<!-- TITLE -->
+<div class="screen show" id="title">
+  <div class="title-logo">SLAM<br>MERS</div>
+  <div class="subtitle">playing for keeps.<br>flip 'em, keep 'em, clean out the neighborhood.</div>
+  <button id="startbtn">SLAM IT</button>
+  <div class="courtline" id="courtprev"></div>
+</div>
+
+<!-- ANTE -->
+<div class="screen" id="ante">
+  <div class="card demand">
+    <div class="who shout" id="demandwho"></div>
+    <div class="say" id="demandsay"></div>
+    <div class="say" id="needline" style="color:var(--cyan);font-size:11px;font-style:normal"></div>
+  </div>
+  <div class="card" style="max-width:340px;width:100%">
+    <div class="shout" style="font-size:12px;color:var(--cyan);text-align:center;margin-bottom:8px">THE POT</div>
+    <div class="potprev" id="potprev"></div>
+  </div>
+  <div class="shout" style="font-size:12px;color:var(--pop)">YOUR BINDER — tap <span id="antecount"></span> to stake</div>
+  <div class="binder-grid" id="bindergrid"></div>
+  <div class="ante-btns">
+    <button class="ghost" id="walkbtn">WALK AWAY</button>
+    <button id="slambtn" disabled>SLAM IT</button>
+  </div>
+</div>
+
+<!-- MATCH HUD -->
+<div id="hud">
+  <div class="topbar">
+    <img class="portrait" id="rportrait" alt="">
+    <div class="rivalinfo">
+      <div class="rivalname" id="rname"></div>
+      <div class="rulechip" id="rulechip" style="display:none"></div>
+    </div>
+    <div>
+      <div class="capslabel">HIS TAKES</div>
+      <div class="caps" id="rivalcaps"></div>
+    </div>
+  </div>
+  <div class="bark" id="bark"></div>
+  <div class="botbar">
+    <div class="turnrow">
+      <div id="turntext"></div>
+      <div id="yourcaps"></div>
+    </div>
+    <div id="pouch"></div>
+    <div id="powwrap"><div id="powfill"></div></div>
+    <div id="hint">hold &amp; drag to aim — release to slam</div>
+  </div>
+</div>
+<div id="banner"></div>
+<div id="fx"></div>
+<div id="flash"></div>
+<div id="grain"></div>
+<div id="grade"></div>
+
+<!-- COURT MAP -->
+<div class="screen" id="map">
+  <h2 style="font-size:26px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">THE NEIGHBORHOOD</h2>
+  <div id="mapnodes" style="display:flex;flex-direction:column;gap:10px;max-width:340px;width:100%"></div>
+  <button id="gobtn">GO</button>
+</div>
+
+<!-- CORNER STORE -->
+<div class="screen" id="store">
+  <div class="card demand">
+    <div class="who shout">THE CORNER STORE</div>
+    <div class="say">"trades only. no refunds. don't touch the candy."</div>
+  </div>
+  <div id="offers" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:340px"></div>
+  <div class="shout" id="payline" style="font-size:11px;color:var(--cyan);min-height:14px"></div>
+  <div class="binder-grid" id="storegrid"></div>
+  <div class="ante-btns">
+    <button class="ghost" id="leavebtn">LEAVE</button>
+    <button id="tradebtn" disabled>TRADE</button>
+  </div>
+</div>
+
+<!-- COIN CALL -->
+<div class="screen" id="calltoss" style="background:rgba(6,4,12,0.6)">
+  <div class="card" style="text-align:center">
+    <div class="shout" style="font-size:18px;color:var(--pop)">CALL IT IN THE AIR</div>
+    <div style="display:flex;gap:14px;margin-top:14px;justify-content:center">
+      <button id="callheads">HEADS</button>
+      <button id="calltails" class="ghost">TAILS</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="result">
+  <h2 id="restitle" style="font-size:30px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000"></h2>
+  <div id="resbark" class="subtitle"></div>
+  <div class="card" style="max-width:340px;width:100%;text-align:center">
+    <div class="shout" style="font-size:11px;color:var(--cyan)" id="gainhead"></div>
+    <div class="resultlist" id="gainlist" style="margin:8px 0"></div>
+    <div class="shout" style="font-size:11px;color:var(--pink)" id="losthead"></div>
+    <div class="resultlist" id="lostlist" style="margin-top:8px"></div>
+  </div>
+  <button id="resbtn">CONTINUE</button>
+</div>
+
+<!-- RUN END -->
+<div class="screen" id="runend">
+  <h2 id="runendtitle" style="font-size:34px;text-align:center;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000"></h2>
+  <div class="subtitle" id="runendsub"></div>
+  <div class="resultlist" id="runendbinder"></div>
+  <button id="runendbtn">NEW RUN</button>
+</div>
+
+<script>

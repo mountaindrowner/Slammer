@@ -1,0 +1,190 @@
+/* ================================================================
+   TAZO BUILDER — grid string -> canvas texture -> cylinder mesh
+   ================================================================ */
+var texCache = {}, urlCache = {};
+function roundRectPath(c, x, y, w, h, r){
+  r = Math.min(r, w/2, h/2);
+  c.beginPath(); c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+function drawLayer(c, S, L){
+  var s = S / 100;
+  c.save();
+  switch (L.t){
+    case 'dot':
+      c.fillStyle = L.col; c.beginPath(); c.arc(L.x*s, L.y*s, L.r*s, 0, 6.2832); c.fill(); break;
+    case 'ring':
+      c.strokeStyle = L.col; c.lineWidth = L.w*s;
+      c.beginPath(); c.arc(L.x*s, L.y*s, L.r*s, 0, 6.2832); c.stroke(); break;
+    case 'ell':
+      c.translate(L.x*s, L.y*s); c.rotate(L.rot || 0);
+      c.fillStyle = L.col; c.beginPath(); c.ellipse(0, 0, L.rx*s, L.ry*s, 0, 0, 6.2832); c.fill(); break;
+    case 'arc':
+      c.strokeStyle = L.col; c.lineWidth = L.w*s; c.lineCap = 'round';
+      c.beginPath(); c.arc(L.x*s, L.y*s, L.r*s, L.a0, L.a1); c.stroke(); break;
+    case 'line':
+      c.strokeStyle = L.col; c.lineWidth = L.w*s; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(L.x0*s, L.y0*s); c.lineTo(L.x1*s, L.y1*s); c.stroke(); break;
+    case 'rect':
+      c.translate((L.x + L.w/2)*s, (L.y + L.h/2)*s); c.rotate(L.rot || 0);
+      roundRectPath(c, -L.w/2*s, -L.h/2*s, L.w*s, L.h*s, (L.rr || 0)*s);
+      c.fillStyle = L.col; c.fill();
+      if (L.str){ c.strokeStyle = L.str; c.lineWidth = (L.sw || 2)*s; c.stroke(); } break;
+    case 'poly':
+      c.beginPath();
+      L.pts.forEach(function(p, i){ i ? c.lineTo(p[0]*s, p[1]*s) : c.moveTo(p[0]*s, p[1]*s); });
+      c.closePath();
+      if (L.col){ c.fillStyle = L.col; c.fill(); }
+      if (L.str){ c.strokeStyle = L.str; c.lineWidth = (L.sw || 2)*s; c.stroke(); } break;
+    case 'star':
+      c.translate(L.x*s, L.y*s); c.rotate(L.rot || 0); c.beginPath();
+      for (var i = 0; i < L.n*2; i++){
+        var r = (i % 2 ? L.r2 : L.r1)*s, a = i * Math.PI / L.n - Math.PI/2;
+        i ? c.lineTo(Math.cos(a)*r, Math.sin(a)*r) : c.moveTo(Math.cos(a)*r, Math.sin(a)*r);
+      }
+      c.closePath(); c.fillStyle = L.col; c.fill(); break;
+    case 'wedge':
+      c.fillStyle = L.col; c.beginPath(); c.moveTo(L.x*s, L.y*s);
+      c.arc(L.x*s, L.y*s, L.r*s, L.a0, L.a1); c.closePath(); c.fill(); break;
+  }
+  c.restore();
+}
+function paintDesign(key){
+  if (texCache[key]) return texCache[key];
+  var d = DESIGNS[key], S = 256, cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  var c = cv.getContext('2d');
+  var g = c.createRadialGradient(S*0.42, S*0.38, S*0.08, S/2, S/2, S*0.64);
+  g.addColorStop(0, d.bg[0]); g.addColorStop(1, d.bg[1]);
+  c.fillStyle = g; c.fillRect(0, 0, S, S);
+  (d.art || []).forEach(function(L){ drawLayer(c, S, L); });
+  /* printed-cap finish: paper grain, worn edge, gloss crescent */
+  for (var i = 0; i < 260; i++){
+    c.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '0,0,0' : '255,255,255') + ',' + (0.02 + Math.random()*0.05).toFixed(3) + ')';
+    c.fillRect(Math.random()*S, Math.random()*S, 2, 2);
+  }
+  if (d.rarity !== 'face'){
+    c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = S*0.07;
+    c.beginPath(); c.arc(S/2, S/2, S*0.485, 0, 6.2832); c.stroke();
+    /* embossed inset ring: the face sits recessed in a solid puck */
+    c.strokeStyle = 'rgba(0,0,0,0.32)'; c.lineWidth = S*0.014;
+    c.beginPath(); c.arc(S/2, S/2, S*0.425, 0, 6.2832); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,0.14)'; c.lineWidth = S*0.01;
+    c.beginPath(); c.arc(S/2, S/2, S*0.443, 0, 6.2832); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,0.2)'; c.lineWidth = S*0.045; c.lineCap = 'round';
+    c.beginPath(); c.arc(S/2, S/2, S*0.4, -2.5, -1.35); c.stroke();
+  }
+  var tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter;
+  tex.generateMipmaps = false;
+  texCache[key] = tex;
+  urlCache[key] = cv.toDataURL();
+  return tex;
+}
+function designURL(key){ paintDesign(key); return urlCache[key]; }
+function shade(hex, f){
+  var n = parseInt(hex.slice(1), 16);
+  var r = Math.min(255, Math.round(((n >> 16) & 255) * f));
+  var g = Math.min(255, Math.round(((n >> 8) & 255) * f));
+  var b = Math.min(255, Math.round((n & 255) * f));
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+/* rim: casino-chip edge spots + laminated layers + chamfer shading */
+var rimCache = {};
+function paintRim(key){
+  if (rimCache[key]) return rimCache[key];
+  var d = DESIGNS[key], W = 512, H = 64;
+  var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  var c = cv.getContext('2d');
+  c.fillStyle = shade(d.bg[1], 0.72); c.fillRect(0, 0, W, H);
+  c.fillStyle = shade(d.bg[0], 1.12);
+  for (var i = 0; i < 8; i++) c.fillRect(i * 64 + 18, 0, 28, H);
+  c.fillStyle = 'rgba(0,0,0,0.22)';
+  [15, 27, 39, 51].forEach(function(y){ c.fillRect(0, y, W, 2); });
+  for (var j = 0; j < 260; j++){
+    c.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '0,0,0' : '255,255,255') + ',' + (0.02 + Math.random()*0.05).toFixed(3) + ')';
+    c.fillRect(Math.random()*W, Math.random()*H, 2, 2);
+  }
+  var gt = c.createLinearGradient(0, 0, 0, 12);
+  gt.addColorStop(0, 'rgba(255,246,230,0.3)'); gt.addColorStop(1, 'rgba(255,246,230,0)');
+  c.fillStyle = gt; c.fillRect(0, 0, W, 12);
+  var gb = c.createLinearGradient(0, H, 0, H - 14);
+  gb.addColorStop(0, 'rgba(0,0,0,0.5)'); gb.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = gb; c.fillRect(0, H - 14, W, 14);
+  var tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = THREE.RepeatWrapping; tex.repeat.set(2, 1);
+  tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+  rimCache[key] = tex;
+  return tex;
+}
+function makeDisc(key, radius, height){
+  var geo = new THREE.CylinderGeometry(radius, radius, height, 28);
+  var face = new THREE.MeshPhongMaterial({ map: paintDesign(key), shininess: 42, specular: 0x554433 });
+  var back = new THREE.MeshPhongMaterial({ map: paintDesign('back'), shininess: 42, specular: 0x554433 });
+  var rim = new THREE.MeshPhongMaterial({ map: paintRim(key), shininess: 26, specular: 0x40352a });
+  return new THREE.Mesh(geo, [rim, face, back]);
+}
+
+/* blob shadows — the cheap depth cue (no shadow maps in mobile webviews) */
+var shadowTex = (function(){
+  var cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  var c = cv.getContext('2d');
+  var g = c.createRadialGradient(32, 32, 4, 32, 32, 30);
+  g.addColorStop(0, 'rgba(5,0,15,0.55)'); g.addColorStop(1, 'rgba(5,0,15,0)');
+  c.fillStyle = g; c.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(cv);
+})();
+var shadowN = 0;
+function makeShadow(r){
+  var m = new THREE.Mesh(
+    new THREE.PlaneGeometry(r * 2.6, r * 2.6),
+    new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+  m.rotation.x = -Math.PI/2;
+  m.position.y = 0.012 + (shadowN++ % 24) * 0.0016; /* stagger so stacked shadows don't z-fight */
+  scene.add(m);
+  return m;
+}
+function syncShadow(sh, p){
+  sh.position.x = p.x; sh.position.z = p.z;
+  var h = Math.max(0, p.y), s = 1 + h * 0.16;
+  sh.scale.set(s, s, 1);
+  sh.material.opacity = clamp(1.1 / (1 + h * 0.7), 0.12, 1);
+}
+function dropShadow(o){ if (o.shadow){ scene.remove(o.shadow); o.shadow = null; } }
+
+/* low-poly rival bust — leans into frame across the court on his turn */
+var bustLean = 0, bustTarget = 0, bustBob = 0, bustRecoil = 0;
+function makeBust(r){
+  var g = new THREE.Group(), B = r.bust;
+  function part(parent, w, h, d2, col, x, y, z, ry){
+    var m = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d2),
+      new THREE.MeshPhongMaterial({ color: col, flatShading: true, shininess: 14 }));
+    m.position.set(x, y, z); if (ry) m.rotation.y = ry;
+    parent.add(m); return m;
+  }
+  part(g, 2.0, 0.85, 0.8, B.jacket, 0, 0.42, 0);       /* shoulders */
+  part(g, 1.0, 1.05, 0.95, B.skin, 0, 1.35, 0);        /* head */
+  part(g, 0.22, 0.3, 0.2, B.skin, 0, 1.2, 0.52);       /* nose */
+  part(g, 0.42, 0.09, 0.06, 0x8d4a3a, 0, 0.98, 0.5);   /* mouth */
+  if (B.style === 'shades'){
+    part(g, 0.88, 0.24, 0.1, 0x14100c, 0, 1.5, 0.52);
+    part(g, 0.94, 0.05, 0.06, 0xc8a838, 0, 1.63, 0.52);
+    part(g, 1.12, 0.4, 1.05, B.cap, 0, 2.0, 0);        /* blond mop */
+    part(g, 1.12, 0.3, 0.16, B.cap, 0, 1.82, 0.5);
+  } else {
+    part(g, 0.17, 0.2, 0.06, 0x1c140c, -0.24, 1.5, 0.52);
+    part(g, 0.17, 0.2, 0.06, 0x1c140c, 0.24, 1.5, 0.52);
+    var hat = new THREE.Group();
+    part(hat, 1.08, 0.42, 1.02, B.cap, 0, 1.98, 0);    /* cap crown */
+    part(hat, 0.9, 0.1, 0.6, B.cap, 0, 1.82, 0.72);    /* brim */
+    if (B.style === 'side') hat.rotation.y = 1.05;
+    g.add(hat);
+  }
+  g.scale.set(1.5, 1.5, 1.5);
+  g.position.set(0, -3.2, -(TUNE.ARENA_R + 2.5));
+  scene.add(g);
+  return g;
+}
+

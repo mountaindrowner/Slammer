@@ -31,6 +31,13 @@ step ends with a green harness run (`?auto=1` → `TESTDONE`, captures/slam in 0
   (revisit trigger: a phone playtest where finishes land but faces read samey).
 - **Difficulty arc:** DECIDED — four acts, each breaks one rule; curveballs are three data
   keys on nodes (`field`, `layout`, `wincon`) + existing `rule` on rivals. Act 1 uses none.
+- **Codebase shape:** DECIDED (pre-Phase-A) — development moved to `src/` modules, built by
+  `python3 build.py` (plain concatenation, verified byte-identical at the split). The shipped
+  artifact remains one self-contained `index.html`; both are committed. CLAUDE.md updated.
+- **Physics engine:** DECIDED (re-confirmed against the vision) — the custom sim stays.
+  Field conditions (tilt, low-g, wind, drains, bumpers) are parameter/force mutations that are
+  *easier* in our sim than in a solver, and the settle rule, attitude throws, and LOYALTY
+  assists all require authored physics. The Rapier trigger from HANDOFF §3 stands unchanged.
 
 ## Still open (playtest questions — do not decide in code)
 
@@ -239,7 +246,6 @@ purpose — Act 2 will teach us the real per-act cost.)*
 - The harness grows with the game: throw driver (Step 2), receipt assertions (5), bag pulls
   (6), wincon drivers (9a), menu path (8). A step isn't done while `?auto=1` can't drive it.
 - Version cadence continues: one step ≈ one minor version ≈ one commit ≈ one artifact publish.
-- Watch the file-size budget: finishes and venues are shader/canvas math, fine — but if the
-  hand-written half of `index.html` passes ~6–7k lines, consider splitting dev into modules
-  with a tiny build step that still emits the single file (CLAUDE.md rule is about the
-  *artifact*, not the editor).
+- ~~Watch the file-size budget…~~ DONE pre-Phase-A: dev now lives in `src/` (22 modules by
+  section), `python3 build.py` emits the identical single-file `index.html`. Add new systems
+  as new numbered files rather than growing existing ones past a few hundred lines.
