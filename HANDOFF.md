@@ -267,3 +267,74 @@ on the title screen (the AI already plays itself — just point the camera at it
 **If picking three:** make the Binder visible (cheap, emotional engine), prototype aimed flips
 behind a flag (biggest open question, gates how much every other mechanic matters), build The
 Principal (bell exists; a confiscation-timer boss closes the run arc).
+
+## 13. How to extend (cookbook)
+
+Line numbers are as of `6f018c1` — treat them as signposts, not addresses. The project rule is
+that **every effect and every house rule is a data key with defined hooks; no special-case logic
+anywhere else.** Adding content should not require touching the sim.
+
+### Add a chip (~10 lines, one place)
+
+Add an entry to `DESIGNS`. Required: `name`, `rarity` (`common`/`rare`/`legendary` — drives
+`RANK` and demand satisfaction), `effect` (or `null`), `fxdesc` (shown on the ante card), `bg`
+(two-stop gradient), `art` (layer specs, 0–100 space, primitives
+`dot ring ell arc line rect poly star wedge`). Then add the key to a rival's `binder`,
+`START_BINDER`, or `run.storeStock`. The rim texture, thumbnail, and mesh are all derived
+automatically.
+
+Pick the hook type by what the chip should react to:
+
+| want | hook | where it resolves |
+|---|---|---|
+| something on capture | `effect:'key'` | `captureTazo()` ~L1725, add a `fx === 'key'` branch |
+| a weight class | `phys:{imp,ang,grav}` | multiplied in `slamImpactAt()` ~L1352 and `stepTazo()` gravity — **no code change needed** |
+| continuous influence on neighbors | `field:'key'` | magnet pass in the main loop; sticky in `collideBodies()` ~L1639 |
+
+`phys` chips need **zero** new code. `effect` and `field` chips need one branch each.
+
+### Add a slammer (1 line + optional hook)
+
+Add to `SLAMMERS`: `radius`, `imp`, `ang` multipliers, optional `fx` key. Add a matching
+`DESIGNS` entry with `rarity:'slammer'` for its art. Then make it obtainable: `run.pouch` at
+start (~L904), `run.storeStock`, or a rival's `slammer` field (won as spoils automatically on
+victory). Multiplier-only slammers need no code. A verb slammer needs an `fx` branch — see
+`spec.fx === 'bounce'` at ~L1390 for the pattern (it re-enters `slamImpactAt()` on landing).
+
+### Add a rival (one object + a node)
+
+Add to `RIVALS`: `name`, `face` (a `DESIGNS` entry, `rarity:'face'`), `accent`, `turf`, `ante`,
+`acc`, `powLo/powHi`, `slammer`, `rule`, `need`, `bust` (`{skin,cap,jacket,style}` where style is
+`cap`/`side`/`shades` — see `makeBust()` ~L853), `binder`, `demand`, `barks{hit,ouch,win,lose}`.
+Then add `{t:'match', r:<index>}` to `NODES`.
+
+### Add a house rule (one key + hooks)
+
+Set `rule:'yourkey'` plus `ruleName`/`ruleDesc` on the rival (the chip in the HUD renders
+itself). Implement at the defined hook points — the mint rule is the reference implementation:
+- **impulse out** (his throws): `slamImpactAt()` ~L1345
+- **impulse in** (his chips resist): `slamImpactAt()` ~L1352
+
+Rules needing other timings will need *new* hook points — add them deliberately and document
+them here rather than scattering conditionals. Likely needed for the unbuilt bosses:
+a pre-aim hook (The Cheater moves the stack), a post-turn hook (The Big Cousin slams twice),
+a capture-veto hook (The Collector removes legendaries from the run; The Cheater's "didn't
+count"), and a match-clock hook (The Principal — `M.bellAt` already exists to build on).
+
+### Add an ante demand
+
+Add a `need` key to the rival, then a case in `needText()` (~L1122, the UI line) and
+`demandOK()` (~L1127, the gate). Existing: `'rare'` (at least one rare+, waived if the Binder
+has none) and `'best'` (your highest-rank chip must be staked).
+
+### Add a court node
+
+Append to `NODES`: `{t:'match', r:i}` or `{t:'store'}`. The map screen, the GO button routing,
+and the title-screen court preview all read from `NODES`. A new node *type* needs a branch in
+the `gobtn` handler and a screen id added to the `showScreen()` list.
+
+### Always, before committing
+
+Run the harness (§8) and check three things: the run reaches `TESTDONE`, captures/slam stays in
+**0.4–0.6**, and no `force-settle` spam appears (that means chips are wedging). New AUTO-mode
+automation may be needed for new screens — see how the store and ante drive themselves.
