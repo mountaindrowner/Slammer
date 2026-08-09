@@ -140,7 +140,7 @@ function allSettled(){
 }
 function maybeEndTurn(){
   if (!M || mode === 'over' || turnEnding) return;
-  if (slammer && slammer.hopping) return;   /* bouncer still owes a hit */
+  if (slammer && slammer.phase !== 'fade') return;   /* the table isn't still yet */
   if (pendingBooms > 0 || animCount > 0 || pendingImps.length > 0) return;
   if (!allSettled()) return;
   if (M.pot.some(isFlipped)) return;  /* still work to do */

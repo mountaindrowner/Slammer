@@ -21,7 +21,7 @@ function loop(ts){
     tlog('hb f' + frameN + ' mode=' + mode + ' dt=' + dt.toFixed(4) +
       ' unsettled=' + alive().filter(function(t){ return !t.settled; }).length +
       ' anims=' + animCount + ' booms=' + pendingBooms +
-      ' slamY=' + (slammer ? slammer.mesh.position.y.toFixed(2) : '-'));
+      ' slam=' + (slammer ? (slammer.phase || '?') : '-'));
   }
 
   /* coin toss sim */
@@ -79,10 +79,12 @@ function loop(ts){
       }
     }
   }
-  /* slammer after impact: bouncer hop delivers a second hit, else fade out */
+  /* slammer after impact: hop (bouncer), then live physics, then fade.
+     The settle rule: the slammer is a citizen of the sim — it tumbles and
+     settles like everything else, and only fades once at rest. */
   if (slammer && slammer.hit){
     var sl = slammer;
-    if (sl.hopping){
+    if (sl.phase === 'hop'){
       sl.vy -= TUNE.GRAV * dt * 0.8;
       sl.mesh.position.y += sl.vy * dt;
       sl.mesh.position.x += sl.hvx * dt;
@@ -93,20 +95,23 @@ function loop(ts){
         var hy = slamRestY(sl);
         if (sl.mesh.position.y <= hy){
           sl.mesh.position.y = hy;
-          sl.hopping = false; sl.vy = 3.2; sl.life = 0;
           sfxThud(sl.pow * 0.6);
           camShake = 0.25;
           shockwave(sl.mesh.position.x, sl.mesh.position.z, 1.5);
           slamImpactAt(sl.mesh.position.x, sl.mesh.position.z, sl.pow * 0.8, sl.side, sl.spec, 0.55);
+          launchSlammerBody(sl);
           tlog('  hop impact');
         }
       }
-    } else {
-      sl.life += dt;
-      sl.vy -= TUNE.GRAV * dt * 0.5;
-      sl.mesh.position.y += sl.vy * dt;
-      sl.mesh.rotation.z += dt * 2;
-      if (sl.life > 0.7){
+    } else if (sl.phase === 'sim'){
+      if (!sl.settled) stepTazo(sl, dt);
+      if (sl.settled){ sl.phase = 'fade'; sl.fadeT = 0; }
+    } else if (sl.phase === 'fade'){
+      sl.fadeT += rdt;
+      var fk = Math.min(1, sl.fadeT / (AUTO ? 0.1 : 0.5));
+      var fs = Math.max(0.001, 1 - fk * fk);
+      sl.mesh.scale.set(fs, fs, fs);
+      if (fk >= 1){
         dropShadow(sl);
         scene.remove(sl.mesh);
         slammer = null;
@@ -116,18 +121,9 @@ function loop(ts){
 
   /* physics sim */
   if (mode === 'sim' && M){
-    var busy = pendingImps.length > 0 || !!(slammer && slammer.hopping);
-    /* anti-stall backstop: a wedged chip gets put to bed by hand */
-    simStuckT += dt;
-    if (simStuckT > 7){
-      simStuckT = 0;
-      M.pot.forEach(function(t){
-        if (!t.captured && !t.settled && !t.settling){
-          tlog('  force-settle ' + t.design.name);
-          beginSettle(t);
-        }
-      });
-    }
+    slamClock += rdt;
+    var busy = pendingImps.length > 0 ||
+      !!(slammer && (slammer.phase === 'hop' || (slammer.phase === 'sim' && !slammer.settled)));
     for (var pi = pendingImps.length - 1; pi >= 0; pi--){
       pendingImps[pi].delay -= dt;
       if (pendingImps[pi].delay <= 0){ pendingImps[pi].fn(); pendingImps.splice(pi, 1); }
@@ -155,8 +151,33 @@ function loop(ts){
       });
     });
     collidePass();
+    /* anti-stall clock: counts only while the table is live */
+    if (busy) simStuckT += dt; else simStuckT = 0;
+    if (simStuckT > 7){
+      simStuckT = 0;
+      M.pot.forEach(function(t){
+        if (!t.captured && !t.settled && !t.settling){
+          tlog('  force-settle ' + t.design.name);
+          beginSettle(t);
+        }
+      });
+      if (slammer && slammer.phase === 'sim' && !slammer.settled && !slammer.settling){
+        beginSettle(slammer);
+      }
+    }
+    /* the settle rule: nothing resolves until the whole table has been
+       still for N consecutive frames — captures aren't real until then */
     if (!busy && pendingBooms === 0){
-      resolveSettled();
+      stillFrames++;
+      if (stillFrames >= STILL_N){
+        if (M && !M.settleLogged){
+          M.settleLogged = true;
+          tlog('  table still in ' + slamClock.toFixed(1) + 's');
+        }
+        resolveSettled();
+      }
+    } else {
+      stillFrames = 0;
     }
   }
 

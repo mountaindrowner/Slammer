@@ -25,6 +25,7 @@ function startMatch(){
     M.pot.push({
       key: s.key, design: DESIGNS[s.key], stakedBy: s.stakedBy, entry: s.entry,
       mesh: mesh, vel: new THREE.Vector3(), angVel: new THREE.Vector3(),
+      bR: TUNE.TAZO_R, bH: TUNE.TAZO_H,
       settled: true, captured: null, disturbed: false,
       shadow: makeShadow(TUNE.TAZO_R)
     });
@@ -79,6 +80,7 @@ function flipCoin(){
   coin = { key:'coin', design: DESIGNS.coin, mesh: mesh,
     vel: new THREE.Vector3(rnd(-0.5, 0.5), 1.5, rnd(-0.5, 0.5)),
     angVel: new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize().multiplyScalar(rnd(9, 14)),
+    bR: TUNE.TAZO_R, bH: TUNE.TAZO_H,
     settled: false, settling: null, disturbed: true, captured: null,
     shadow: makeShadow(TUNE.TAZO_R) };
   sfxFlip();

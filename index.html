@@ -252,7 +252,7 @@
 /* ================================================================
    SLAMMERS — playing-for-keeps tazo roguelite (proof of concept)
    ================================================================ */
-var VERSION = '0.7.0';
+var VERSION = '0.8.0';
 var AUTO = /[?&]auto=1/.test(location.search);
 
 /* ---------- diagnostics: breadcrumbs, error banner, version ---------- */
@@ -1167,6 +1167,7 @@ function startMatch(){
     M.pot.push({
       key: s.key, design: DESIGNS[s.key], stakedBy: s.stakedBy, entry: s.entry,
       mesh: mesh, vel: new THREE.Vector3(), angVel: new THREE.Vector3(),
+      bR: TUNE.TAZO_R, bH: TUNE.TAZO_H,
       settled: true, captured: null, disturbed: false,
       shadow: makeShadow(TUNE.TAZO_R)
     });
@@ -1221,6 +1222,7 @@ function flipCoin(){
   coin = { key:'coin', design: DESIGNS.coin, mesh: mesh,
     vel: new THREE.Vector3(rnd(-0.5, 0.5), 1.5, rnd(-0.5, 0.5)),
     angVel: new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize().multiplyScalar(rnd(9, 14)),
+    bR: TUNE.TAZO_R, bH: TUNE.TAZO_H,
     settled: false, settling: null, disturbed: true, captured: null,
     shadow: makeShadow(TUNE.TAZO_R) };
   sfxFlip();
@@ -1327,16 +1329,20 @@ function doSlam(side, x, z, pow){
   mesh.position.set(x, 6, z);
   scene.add(mesh);
   slammer = { mesh: mesh, side: side, pow: pow, spec: spec,
+    design: DESIGNS[key], bR: 0.72, bH: 0.24, m: 3,
     vy: -(TUNE.DROP_VY + pow * TUNE.DROP_VY_POW),
-    hit: false, hopped: false, hopping: false, life: 0,
+    hit: false, hopped: false, hopping: false, phase: 'drop',
     shadow: makeShadow(0.72) };
   reticle.visible = false;
   mode = 'drop';
+  slamClock = 0;
+  M.settleLogged = false;
   M.slams++;
   tlog('SLAM ' + side + ' @(' + x.toFixed(1) + ',' + z.toFixed(1) + ') pow=' + pow.toFixed(2));
 }
 
-var pendingImps = [], simStuckT = 0;
+var pendingImps = [], simStuckT = 0, stillFrames = 0, slamClock = 0;
+var STILL_N = AUTO ? 5 : 15;   /* settle rule: consecutive still frames before the tally */
 function slamImpactAt(px, pz, pow, side, spec, mult){
   simStuckT = 0;
   var R = (TUNE.IMP_R_BASE + pow * TUNE.IMP_R_POW) * (spec.radius || 1);
@@ -1389,10 +1395,23 @@ function slamImpact(){
   slamImpactAt(s.mesh.position.x, s.mesh.position.z, pow, s.side, s.spec, 1);
   if (s.spec.fx === 'bounce' && !s.hopped){
     s.hopped = true; s.hopping = true;
+    s.phase = 'hop';
     s.vy = 5.4;
     s.hvx = rnd(-1.5, 1.5); s.hvz = rnd(-1.5, 1.5);
     tlog('  bouncer hop');
+  } else {
+    launchSlammerBody(s);
   }
+}
+/* the settle rule: the slammer is a citizen of the sim — after impact it
+   rebounds, tumbles, and settles under the same physics as the chips */
+function launchSlammerBody(s){
+  s.hopping = false;
+  s.phase = 'sim';
+  s.vel = new THREE.Vector3(rnd(-1.2, 1.2), 2.4 + s.pow * 2.6, rnd(-1.2, 1.2));
+  s.angVel = new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize()
+    .multiplyScalar(3 + s.pow * 6);
+  s.settled = false; s.settling = null; s.disturbed = true;
 }
 function slamRestY(s){
   var top = 0;
@@ -1409,10 +1428,10 @@ function slamRestY(s){
 /* support height: the lowest point of a tilted disc is on its rim,
    so the rest height depends on orientation — this is what stops rims
    knifing through the floor */
-function supportY(q){
+function supportY(q, R, H){
   _sn.set(0, 1, 0).applyQuaternion(q);
   var ay = Math.abs(_sn.y);
-  return TUNE.TAZO_H / 2 * ay + TUNE.TAZO_R * Math.sqrt(Math.max(0, 1 - ay * ay));
+  return H / 2 * ay + R * Math.sqrt(Math.max(0, 1 - ay * ay));
 }
 function stepTazo(t, dt){
   if (t.settling){ stepSettling(t, dt); return; }
@@ -1421,7 +1440,7 @@ function stepTazo(t, dt){
   p.x += v.x * dt; p.y += v.y * dt; p.z += v.z * dt;
   /* arena curb */
   var rr = Math.sqrt(p.x*p.x + p.z*p.z);
-  var lim = TUNE.ARENA_R - TUNE.TAZO_R * 0.6;
+  var lim = TUNE.ARENA_R - t.bR * 0.6;
   if (rr > lim){
     var wx = p.x / rr, wz = p.z / rr;
     p.x = wx * lim; p.z = wz * lim;
@@ -1438,7 +1457,7 @@ function stepTazo(t, dt){
   _sn.set(0, 1, 0).applyQuaternion(t.mesh.quaternion);
   var ny = _sn.y, ay = Math.abs(ny);
   var sinT = Math.sqrt(Math.max(0, 1 - ay * ay));
-  var restY = TUNE.TAZO_H / 2 * ay + TUNE.TAZO_R * sinT;
+  var restY = t.bH / 2 * ay + t.bR * sinT;
   var onGround = false;
   if (p.y <= restY){
     p.y = restY; onGround = true;
@@ -1449,8 +1468,8 @@ function stepTazo(t, dt){
         if (sinT > 0.05){
           /* tilted landing: trip over the rim contact point */
           _cn.set(ny * _sn.x, ny * ny - 1, ny * _sn.z).normalize();      /* downhill rim dir */
-          _ra.copy(_cn).multiplyScalar(TUNE.TAZO_R)
-             .addScaledVector(_sn, -(ny >= 0 ? 1 : -1) * TUNE.TAZO_H / 2);
+          _ra.copy(_cn).multiplyScalar(t.bR)
+             .addScaledVector(_sn, -(ny >= 0 ? 1 : -1) * t.bH / 2);
           _tq.crossVectors(_ra, _upv.set(0, 1, 0));
           t.angVel.addScaledVector(_tq, hit * 0.85);
         }
@@ -1481,6 +1500,11 @@ function stepTazo(t, dt){
       t.angVel.x += rnd(-1, 1) * TUNE.FLUTTER * dt;
       t.angVel.z += rnd(-1, 1) * TUNE.FLUTTER * dt;
     }
+  }
+  /* straggler assist: after ~4 s of live sim, friction quietly wins */
+  if (simStuckT > 4){
+    v.multiplyScalar(Math.pow(0.2, dt));
+    t.angVel.multiplyScalar(Math.pow(0.2, dt));
   }
   /* tumble */
   var w = t.angVel.length();
@@ -1536,19 +1560,20 @@ function stepSettling(t, dt){
   t.mesh.quaternion.multiply(_wobQ.setFromAxisAngle(_wobAx, wob));
   /* pivot down on the rim contact — never through the floor; descend
      gently so the collision pass can hold it up on top of other chips */
-  var fy = supportY(t.mesh.quaternion);
+  var fy = supportY(t.mesh.quaternion, t.bR, t.bH);
   t.mesh.position.y = Math.max(fy, t.mesh.position.y - 1.6 * dt);
 }
 function finishSettle(t){
   t.settled = true;
+  if (!M) return;
   /* rest on top of any settled chip we still overlap (bead-consistent height) */
   var lift = 0;
   M.pot.forEach(function(o){
     if (o !== t && !o.captured && o.settled &&
-        hdist(o.mesh.position.x, o.mesh.position.z, t.mesh.position.x, t.mesh.position.z) < TUNE.TAZO_R * 1.7 &&
-        o.mesh.position.y >= lift + TUNE.TAZO_H/2 - 0.001) lift = o.mesh.position.y + TUNE.TAZO_H/2;
+        hdist(o.mesh.position.x, o.mesh.position.z, t.mesh.position.x, t.mesh.position.z) < (t.bR + o.bR) * 0.85 &&
+        o.mesh.position.y >= lift + o.bH/2 - 0.001) lift = o.mesh.position.y + o.bH/2;
   });
-  t.mesh.position.y = TUNE.TAZO_H/2 + lift;
+  t.mesh.position.y = t.bH/2 + lift;
 }
 
 /* ================================================================
@@ -1583,9 +1608,15 @@ function collidePass(){
   var bodies = [];
   M.pot.forEach(function(t){
     if (t.captured) return;
-    bodies.push({ holder: t, mesh: t.mesh, R: TUNE.TAZO_R, h: TUNE.TAZO_H / 2, chip: t });
+    bodies.push({ holder: t, mesh: t.mesh, R: t.bR, h: t.bH / 2, m: 1, chip: t });
   });
-  if (slammer) bodies.push({ holder: slammer, mesh: slammer.mesh, R: 0.72, h: 0.12, chip: null });
+  if (slammer){
+    /* while live in the sim the slammer is a heavy mobile body;
+       during drop/hop it's a solid obstacle chips bounce off */
+    var slMobile = slammer.phase === 'sim' && slammer.vel && !slammer.settled;
+    bodies.push({ holder: slammer, mesh: slammer.mesh, R: 0.72, h: 0.12, m: 3,
+      chip: slMobile ? slammer : null });
+  }
   bodies.forEach(computeBeads);
   for (var i = 0; i < bodies.length; i++) for (var j = i + 1; j < bodies.length; j++){
     var A = bodies[i], B = bodies[j];
@@ -1611,11 +1642,11 @@ function collideBodies(A, B){
     if (d < 0.001){ nx = 0; ny = 1; nz = 0; d = 0.001; }
     else { nx = dx / d; ny = dy / d; nz = dz / d; }
     var overlap = minD - d;
-    /* positional separation: free chips move, sleepers and the slammer hold */
+    /* positional separation, mass-weighted: light bodies give way first */
     var mvA = A.chip && !A.chip.settled;
     var mvB = B.chip && !B.chip.settled;
-    var wA = mvA ? (mvB ? 0.5 : 1) : 0;
-    var wB = mvB ? (mvA ? 0.5 : 1) : 0;
+    var wA = mvA ? (mvB ? B.m / (A.m + B.m) : 1) : 0;
+    var wB = mvB ? (mvA ? A.m / (A.m + B.m) : 1) : 0;
     if (wA){
       A.mesh.position.x -= nx * overlap * wA;
       A.mesh.position.y -= ny * overlap * wA;
@@ -1645,15 +1676,18 @@ function collideBodies(A, B){
         var jimp = rel * (1 + TUNE.REST_DISC) * 0.5;
         if (jimp > 1.1){ wakeChip(ta); wakeChip(tb); sfxClack(0.02 + jimp * 0.012); }
         _cn.set(nx, ny, nz);
+        /* mass-weighted momentum exchange: the slammer bats chips, not vice versa */
+        var jA = jimp * 2 * B.m / (A.m + B.m);
+        var jB = jimp * 2 * A.m / (A.m + B.m);
         if (!ta.settled && !ta.settling){
-          ta.vel.addScaledVector(_cn, -jimp);
+          ta.vel.addScaledVector(_cn, -jA);
           _tq.crossVectors(_ra, _cn);
-          ta.angVel.addScaledVector(_tq, -jimp * 1.6);
+          ta.angVel.addScaledVector(_tq, -jA * 1.6);
         }
         if (!tb.settled && !tb.settling){
-          tb.vel.addScaledVector(_cn, jimp);
+          tb.vel.addScaledVector(_cn, jB);
           _tq.crossVectors(_rb, _cn);
-          tb.angVel.addScaledVector(_tq, jimp * 1.6);
+          tb.angVel.addScaledVector(_tq, jB * 1.6);
         }
       }
     } else {
@@ -1816,7 +1850,7 @@ function allSettled(){
 }
 function maybeEndTurn(){
   if (!M || mode === 'over' || turnEnding) return;
-  if (slammer && slammer.hopping) return;   /* bouncer still owes a hit */
+  if (slammer && slammer.phase !== 'fade') return;   /* the table isn't still yet */
   if (pendingBooms > 0 || animCount > 0 || pendingImps.length > 0) return;
   if (!allSettled()) return;
   if (M.pot.some(isFlipped)) return;  /* still work to do */
@@ -2077,7 +2111,7 @@ function loop(ts){
     tlog('hb f' + frameN + ' mode=' + mode + ' dt=' + dt.toFixed(4) +
       ' unsettled=' + alive().filter(function(t){ return !t.settled; }).length +
       ' anims=' + animCount + ' booms=' + pendingBooms +
-      ' slamY=' + (slammer ? slammer.mesh.position.y.toFixed(2) : '-'));
+      ' slam=' + (slammer ? (slammer.phase || '?') : '-'));
   }
 
   /* coin toss sim */
@@ -2135,10 +2169,12 @@ function loop(ts){
       }
     }
   }
-  /* slammer after impact: bouncer hop delivers a second hit, else fade out */
+  /* slammer after impact: hop (bouncer), then live physics, then fade.
+     The settle rule: the slammer is a citizen of the sim — it tumbles and
+     settles like everything else, and only fades once at rest. */
   if (slammer && slammer.hit){
     var sl = slammer;
-    if (sl.hopping){
+    if (sl.phase === 'hop'){
       sl.vy -= TUNE.GRAV * dt * 0.8;
       sl.mesh.position.y += sl.vy * dt;
       sl.mesh.position.x += sl.hvx * dt;
@@ -2149,20 +2185,23 @@ function loop(ts){
         var hy = slamRestY(sl);
         if (sl.mesh.position.y <= hy){
           sl.mesh.position.y = hy;
-          sl.hopping = false; sl.vy = 3.2; sl.life = 0;
           sfxThud(sl.pow * 0.6);
           camShake = 0.25;
           shockwave(sl.mesh.position.x, sl.mesh.position.z, 1.5);
           slamImpactAt(sl.mesh.position.x, sl.mesh.position.z, sl.pow * 0.8, sl.side, sl.spec, 0.55);
+          launchSlammerBody(sl);
           tlog('  hop impact');
         }
       }
-    } else {
-      sl.life += dt;
-      sl.vy -= TUNE.GRAV * dt * 0.5;
-      sl.mesh.position.y += sl.vy * dt;
-      sl.mesh.rotation.z += dt * 2;
-      if (sl.life > 0.7){
+    } else if (sl.phase === 'sim'){
+      if (!sl.settled) stepTazo(sl, dt);
+      if (sl.settled){ sl.phase = 'fade'; sl.fadeT = 0; }
+    } else if (sl.phase === 'fade'){
+      sl.fadeT += rdt;
+      var fk = Math.min(1, sl.fadeT / (AUTO ? 0.1 : 0.5));
+      var fs = Math.max(0.001, 1 - fk * fk);
+      sl.mesh.scale.set(fs, fs, fs);
+      if (fk >= 1){
         dropShadow(sl);
         scene.remove(sl.mesh);
         slammer = null;
@@ -2172,18 +2211,9 @@ function loop(ts){
 
   /* physics sim */
   if (mode === 'sim' && M){
-    var busy = pendingImps.length > 0 || !!(slammer && slammer.hopping);
-    /* anti-stall backstop: a wedged chip gets put to bed by hand */
-    simStuckT += dt;
-    if (simStuckT > 7){
-      simStuckT = 0;
-      M.pot.forEach(function(t){
-        if (!t.captured && !t.settled && !t.settling){
-          tlog('  force-settle ' + t.design.name);
-          beginSettle(t);
-        }
-      });
-    }
+    slamClock += rdt;
+    var busy = pendingImps.length > 0 ||
+      !!(slammer && (slammer.phase === 'hop' || (slammer.phase === 'sim' && !slammer.settled)));
     for (var pi = pendingImps.length - 1; pi >= 0; pi--){
       pendingImps[pi].delay -= dt;
       if (pendingImps[pi].delay <= 0){ pendingImps[pi].fn(); pendingImps.splice(pi, 1); }
@@ -2211,8 +2241,33 @@ function loop(ts){
       });
     });
     collidePass();
+    /* anti-stall clock: counts only while the table is live */
+    if (busy) simStuckT += dt; else simStuckT = 0;
+    if (simStuckT > 7){
+      simStuckT = 0;
+      M.pot.forEach(function(t){
+        if (!t.captured && !t.settled && !t.settling){
+          tlog('  force-settle ' + t.design.name);
+          beginSettle(t);
+        }
+      });
+      if (slammer && slammer.phase === 'sim' && !slammer.settled && !slammer.settling){
+        beginSettle(slammer);
+      }
+    }
+    /* the settle rule: nothing resolves until the whole table has been
+       still for N consecutive frames — captures aren't real until then */
     if (!busy && pendingBooms === 0){
-      resolveSettled();
+      stillFrames++;
+      if (stillFrames >= STILL_N){
+        if (M && !M.settleLogged){
+          M.settleLogged = true;
+          tlog('  table still in ' + slamClock.toFixed(1) + 's');
+        }
+        resolveSettled();
+      }
+    } else {
+      stillFrames = 0;
     }
   }
 

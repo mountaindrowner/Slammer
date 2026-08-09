@@ -30,9 +30,15 @@ function collidePass(){
   var bodies = [];
   M.pot.forEach(function(t){
     if (t.captured) return;
-    bodies.push({ holder: t, mesh: t.mesh, R: TUNE.TAZO_R, h: TUNE.TAZO_H / 2, chip: t });
+    bodies.push({ holder: t, mesh: t.mesh, R: t.bR, h: t.bH / 2, m: 1, chip: t });
   });
-  if (slammer) bodies.push({ holder: slammer, mesh: slammer.mesh, R: 0.72, h: 0.12, chip: null });
+  if (slammer){
+    /* while live in the sim the slammer is a heavy mobile body;
+       during drop/hop it's a solid obstacle chips bounce off */
+    var slMobile = slammer.phase === 'sim' && slammer.vel && !slammer.settled;
+    bodies.push({ holder: slammer, mesh: slammer.mesh, R: 0.72, h: 0.12, m: 3,
+      chip: slMobile ? slammer : null });
+  }
   bodies.forEach(computeBeads);
   for (var i = 0; i < bodies.length; i++) for (var j = i + 1; j < bodies.length; j++){
     var A = bodies[i], B = bodies[j];
@@ -58,11 +64,11 @@ function collideBodies(A, B){
     if (d < 0.001){ nx = 0; ny = 1; nz = 0; d = 0.001; }
     else { nx = dx / d; ny = dy / d; nz = dz / d; }
     var overlap = minD - d;
-    /* positional separation: free chips move, sleepers and the slammer hold */
+    /* positional separation, mass-weighted: light bodies give way first */
     var mvA = A.chip && !A.chip.settled;
     var mvB = B.chip && !B.chip.settled;
-    var wA = mvA ? (mvB ? 0.5 : 1) : 0;
-    var wB = mvB ? (mvA ? 0.5 : 1) : 0;
+    var wA = mvA ? (mvB ? B.m / (A.m + B.m) : 1) : 0;
+    var wB = mvB ? (mvA ? A.m / (A.m + B.m) : 1) : 0;
     if (wA){
       A.mesh.position.x -= nx * overlap * wA;
       A.mesh.position.y -= ny * overlap * wA;
@@ -92,15 +98,18 @@ function collideBodies(A, B){
         var jimp = rel * (1 + TUNE.REST_DISC) * 0.5;
         if (jimp > 1.1){ wakeChip(ta); wakeChip(tb); sfxClack(0.02 + jimp * 0.012); }
         _cn.set(nx, ny, nz);
+        /* mass-weighted momentum exchange: the slammer bats chips, not vice versa */
+        var jA = jimp * 2 * B.m / (A.m + B.m);
+        var jB = jimp * 2 * A.m / (A.m + B.m);
         if (!ta.settled && !ta.settling){
-          ta.vel.addScaledVector(_cn, -jimp);
+          ta.vel.addScaledVector(_cn, -jA);
           _tq.crossVectors(_ra, _cn);
-          ta.angVel.addScaledVector(_tq, -jimp * 1.6);
+          ta.angVel.addScaledVector(_tq, -jA * 1.6);
         }
         if (!tb.settled && !tb.settling){
-          tb.vel.addScaledVector(_cn, jimp);
+          tb.vel.addScaledVector(_cn, jB);
           _tq.crossVectors(_rb, _cn);
-          tb.angVel.addScaledVector(_tq, jimp * 1.6);
+          tb.angVel.addScaledVector(_tq, jB * 1.6);
         }
       }
     } else {

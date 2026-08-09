@@ -11,16 +11,20 @@ function doSlam(side, x, z, pow){
   mesh.position.set(x, 6, z);
   scene.add(mesh);
   slammer = { mesh: mesh, side: side, pow: pow, spec: spec,
+    design: DESIGNS[key], bR: 0.72, bH: 0.24, m: 3,
     vy: -(TUNE.DROP_VY + pow * TUNE.DROP_VY_POW),
-    hit: false, hopped: false, hopping: false, life: 0,
+    hit: false, hopped: false, hopping: false, phase: 'drop',
     shadow: makeShadow(0.72) };
   reticle.visible = false;
   mode = 'drop';
+  slamClock = 0;
+  M.settleLogged = false;
   M.slams++;
   tlog('SLAM ' + side + ' @(' + x.toFixed(1) + ',' + z.toFixed(1) + ') pow=' + pow.toFixed(2));
 }
 
-var pendingImps = [], simStuckT = 0;
+var pendingImps = [], simStuckT = 0, stillFrames = 0, slamClock = 0;
+var STILL_N = AUTO ? 5 : 15;   /* settle rule: consecutive still frames before the tally */
 function slamImpactAt(px, pz, pow, side, spec, mult){
   simStuckT = 0;
   var R = (TUNE.IMP_R_BASE + pow * TUNE.IMP_R_POW) * (spec.radius || 1);
@@ -73,10 +77,23 @@ function slamImpact(){
   slamImpactAt(s.mesh.position.x, s.mesh.position.z, pow, s.side, s.spec, 1);
   if (s.spec.fx === 'bounce' && !s.hopped){
     s.hopped = true; s.hopping = true;
+    s.phase = 'hop';
     s.vy = 5.4;
     s.hvx = rnd(-1.5, 1.5); s.hvz = rnd(-1.5, 1.5);
     tlog('  bouncer hop');
+  } else {
+    launchSlammerBody(s);
   }
+}
+/* the settle rule: the slammer is a citizen of the sim — after impact it
+   rebounds, tumbles, and settles under the same physics as the chips */
+function launchSlammerBody(s){
+  s.hopping = false;
+  s.phase = 'sim';
+  s.vel = new THREE.Vector3(rnd(-1.2, 1.2), 2.4 + s.pow * 2.6, rnd(-1.2, 1.2));
+  s.angVel = new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize()
+    .multiplyScalar(3 + s.pow * 6);
+  s.settled = false; s.settling = null; s.disturbed = true;
 }
 function slamRestY(s){
   var top = 0;
@@ -93,10 +110,10 @@ function slamRestY(s){
 /* support height: the lowest point of a tilted disc is on its rim,
    so the rest height depends on orientation — this is what stops rims
    knifing through the floor */
-function supportY(q){
+function supportY(q, R, H){
   _sn.set(0, 1, 0).applyQuaternion(q);
   var ay = Math.abs(_sn.y);
-  return TUNE.TAZO_H / 2 * ay + TUNE.TAZO_R * Math.sqrt(Math.max(0, 1 - ay * ay));
+  return H / 2 * ay + R * Math.sqrt(Math.max(0, 1 - ay * ay));
 }
 function stepTazo(t, dt){
   if (t.settling){ stepSettling(t, dt); return; }
@@ -105,7 +122,7 @@ function stepTazo(t, dt){
   p.x += v.x * dt; p.y += v.y * dt; p.z += v.z * dt;
   /* arena curb */
   var rr = Math.sqrt(p.x*p.x + p.z*p.z);
-  var lim = TUNE.ARENA_R - TUNE.TAZO_R * 0.6;
+  var lim = TUNE.ARENA_R - t.bR * 0.6;
   if (rr > lim){
     var wx = p.x / rr, wz = p.z / rr;
     p.x = wx * lim; p.z = wz * lim;
@@ -122,7 +139,7 @@ function stepTazo(t, dt){
   _sn.set(0, 1, 0).applyQuaternion(t.mesh.quaternion);
   var ny = _sn.y, ay = Math.abs(ny);
   var sinT = Math.sqrt(Math.max(0, 1 - ay * ay));
-  var restY = TUNE.TAZO_H / 2 * ay + TUNE.TAZO_R * sinT;
+  var restY = t.bH / 2 * ay + t.bR * sinT;
   var onGround = false;
   if (p.y <= restY){
     p.y = restY; onGround = true;
@@ -133,8 +150,8 @@ function stepTazo(t, dt){
         if (sinT > 0.05){
           /* tilted landing: trip over the rim contact point */
           _cn.set(ny * _sn.x, ny * ny - 1, ny * _sn.z).normalize();      /* downhill rim dir */
-          _ra.copy(_cn).multiplyScalar(TUNE.TAZO_R)
-             .addScaledVector(_sn, -(ny >= 0 ? 1 : -1) * TUNE.TAZO_H / 2);
+          _ra.copy(_cn).multiplyScalar(t.bR)
+             .addScaledVector(_sn, -(ny >= 0 ? 1 : -1) * t.bH / 2);
           _tq.crossVectors(_ra, _upv.set(0, 1, 0));
           t.angVel.addScaledVector(_tq, hit * 0.85);
         }
@@ -165,6 +182,11 @@ function stepTazo(t, dt){
       t.angVel.x += rnd(-1, 1) * TUNE.FLUTTER * dt;
       t.angVel.z += rnd(-1, 1) * TUNE.FLUTTER * dt;
     }
+  }
+  /* straggler assist: after ~4 s of live sim, friction quietly wins */
+  if (simStuckT > 4){
+    v.multiplyScalar(Math.pow(0.2, dt));
+    t.angVel.multiplyScalar(Math.pow(0.2, dt));
   }
   /* tumble */
   var w = t.angVel.length();
@@ -220,18 +242,19 @@ function stepSettling(t, dt){
   t.mesh.quaternion.multiply(_wobQ.setFromAxisAngle(_wobAx, wob));
   /* pivot down on the rim contact — never through the floor; descend
      gently so the collision pass can hold it up on top of other chips */
-  var fy = supportY(t.mesh.quaternion);
+  var fy = supportY(t.mesh.quaternion, t.bR, t.bH);
   t.mesh.position.y = Math.max(fy, t.mesh.position.y - 1.6 * dt);
 }
 function finishSettle(t){
   t.settled = true;
+  if (!M) return;
   /* rest on top of any settled chip we still overlap (bead-consistent height) */
   var lift = 0;
   M.pot.forEach(function(o){
     if (o !== t && !o.captured && o.settled &&
-        hdist(o.mesh.position.x, o.mesh.position.z, t.mesh.position.x, t.mesh.position.z) < TUNE.TAZO_R * 1.7 &&
-        o.mesh.position.y >= lift + TUNE.TAZO_H/2 - 0.001) lift = o.mesh.position.y + TUNE.TAZO_H/2;
+        hdist(o.mesh.position.x, o.mesh.position.z, t.mesh.position.x, t.mesh.position.z) < (t.bR + o.bR) * 0.85 &&
+        o.mesh.position.y >= lift + o.bH/2 - 0.001) lift = o.mesh.position.y + o.bH/2;
   });
-  t.mesh.position.y = TUNE.TAZO_H/2 + lift;
+  t.mesh.position.y = t.bH/2 + lift;
 }
 

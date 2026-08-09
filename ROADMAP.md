@@ -53,24 +53,21 @@ severity (wipe vs protected page).
 > the venue budget before any content scales. Nothing in later phases is worth building if
 > Phase A doesn't feel right.
 
-## Step 1 — Settle rule + slammer physics  `[ ]`
+## Step 1 — Settle rule + slammer physics  `[x]` (v0.8.0)
 *Vision §7 (settle rule). Pure feel; unblocks honest playtesting.*
 
-- [ ] Slammer becomes a sim citizen: after impact it tumbles/bounces/settles under the same
-      physics as chips (today it's scripted: cosmetic bounce, fades at 0.7 s). Give it a body
-      in `stepTazo`-style integration or promote it into the bead system it already collides
-      through; only after rest does it fade (~0.5 s).
-- [ ] Turn gate: `maybeEndTurn` requires *everything* (chips + slammer) below linear+angular
-      thresholds for ~15 consecutive frames. Tally/captures/callout events key off the settle
-      event, not impact.
-- [ ] Straggler assist: any chip live after ~4 s ramps damping (invisible friction). Hard cap
-      ~7 s: snap to nearest stable face **with a settling wobble** (replaces today's blunt
-      `force-settle`; never a teleport, never mid-air).
-- Touches: main loop slammer branch, `maybeEndTurn`, anti-stall backstop, `resolveSettled`.
-- Harness: settle-event timing appears in tlog (`SETTLED in X.Xs`); assert no turn advances
-  with unsettled bodies.
-- Done when: watching a chip wobble on its edge is the moment-to-moment tension beat, and the
-  slammer visibly lives and dies on the table.
+- [x] Slammer is a sim citizen: `launchSlammerBody()` after impact (and after the bouncer's
+      hop) gives it velocity/spin and it runs through the same `stepTazo` physics as chips —
+      generalized per-body dims (`bR`/`bH`), mass-weighted collision (m=3 vs chips' 1, so it
+      bats chips around, not vice versa), settles via the wobble, then fades 0.5 s.
+- [x] Turn gate: sim resolves only after the whole table is still for `STILL_N` consecutive
+      frames (15, AUTO 5); `maybeEndTurn` blocks while any slammer phase precedes `fade`.
+      Captures key off the settle event, not impact.
+- [x] Straggler assist: after 4 s of live sim, damping ramps (friction quietly wins); the 7 s
+      hard cap force-settles through `beginSettle` (wobble, never a teleport). Anti-stall
+      clock now counts only while the table is live.
+- Verified (v0.8.0 run): median 1.8 s impact→still, max 7.6 s, only 2 hard-cap saves in 75
+  slams, caps/slam 0.40, bouncer double-hit intact, run won, no errors.
 
 ## Step 2 — Throw v2 + capture-band retune  `[ ]`
 *Vision §7 (attitude, power curve, Tournament Grip). The one big tuning fight.*
