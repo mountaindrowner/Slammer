@@ -17,15 +17,25 @@
 </script>
 <style>
   :root{
-    --ink:#14082b; --ink2:#1d1038; --pop:#ffd23f; --pink:#ff2e88; --cyan:#35e0e6;
+    --ink:#0b0812; --ink2:#161020; --pop:#f5b93d; --pink:#ff3d5e; --cyan:#7fd9c0;
     --shout:'Bungee','Arial Black',Impact,sans-serif;
     --body:'Rubik',system-ui,-apple-system,sans-serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--ink);color:#fff;
     font-family:var(--body);user-select:none;-webkit-user-select:none}
-  /* dusk sky behind the transparent WebGL canvas */
-  body{background:linear-gradient(180deg,#0d0620 0%,#2a1150 16%,#6b2a7a 23%,#e0527c 27%,#ff9a55 29%,#3a1c52 34%,#14082b 62%,#14082b 100%)}
+  /* night sky behind the transparent WebGL canvas */
+  body{background:linear-gradient(180deg,#04030a 0%,#0a0716 26%,#151022 42%,#0b0714 60%,#04030a 100%)}
+  /* film grade: vignette + animated grain */
+  #grade{position:fixed;inset:0;pointer-events:none;z-index:90;
+    background:radial-gradient(ellipse at 50% 42%,rgba(0,0,0,0) 40%,rgba(4,2,10,0.55) 100%)}
+  #grain{position:fixed;inset:-64px;pointer-events:none;z-index:89;opacity:.07;
+    animation:grain .85s steps(8) infinite}
+  @keyframes grain{
+    0%{transform:translate(0,0)}12.5%{transform:translate(-24px,14px)}25%{transform:translate(16px,-20px)}
+    37.5%{transform:translate(-18px,-8px)}50%{transform:translate(22px,18px)}62.5%{transform:translate(-8px,22px)}
+    75%{transform:translate(14px,-14px)}87.5%{transform:translate(-20px,4px)}100%{transform:translate(0,0)}}
+  @media (prefers-reduced-motion:reduce){#grain{animation:none}}
   /* canvas is a replaced element: inset alone doesn't stretch it — explicit size required */
   #gl{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block}
   .badge{position:fixed;left:8px;bottom:6px;font-size:10px;opacity:.45;z-index:60;pointer-events:none}
@@ -42,7 +52,7 @@
 
   /* ---------- screens ---------- */
   .screen{position:fixed;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;
-    justify-content:center;gap:14px;padding:18px;background:radial-gradient(circle at 50% 30%,#241448 0%,var(--ink) 70%);
+    justify-content:center;gap:14px;padding:18px;background:radial-gradient(circle at 50% 30%,#1b1230 0%,var(--ink) 70%);
     overflow-y:auto}
   .screen.show{display:flex}
   .title-logo{font-family:var(--shout);font-size:min(17vw,72px);line-height:.95;text-align:center;
@@ -58,23 +68,23 @@
   .vs{font-family:var(--shout);color:var(--pink);font-size:18px}
   .binder-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:340px;width:100%;
     max-height:38vh;overflow-y:auto;padding:4px}
-  .tz{position:relative;background:#241748;border:3px solid #000;border-radius:12px;padding:6px 4px 4px;
+  .tz{position:relative;background:#1d1630;border:3px solid #000;border-radius:12px;padding:6px 4px 4px;
     display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;box-shadow:3px 3px 0 #000}
-  .tz img{width:52px;height:52px;image-rendering:pixelated;border-radius:50%;border:2px solid #000}
+  .tz img{width:52px;height:52px;border-radius:50%;border:2px solid #000}
   .tz .nm{font-size:9px;font-family:var(--shout);text-align:center}
   .tz .fx{font-size:8px;color:var(--cyan);text-align:center;min-height:9px}
   .tz.rare{border-color:var(--cyan)} .tz.legendary{border-color:var(--pop)}
-  .tz.staked{transform:translateY(-6px);outline:3px solid var(--pop);background:#3a2b10}
+  .tz.staked{transform:translateY(-6px);outline:3px solid var(--pop);background:#33260f}
   .tz.slot{opacity:.35;border-style:dashed;cursor:default}
-  .minitz{width:40px;height:40px;image-rendering:pixelated;border-radius:50%;border:2px solid #000;background:#241748}
+  .minitz{width:40px;height:40px;border-radius:50%;border:2px solid #000;background:#241748}
   .ante-btns{display:flex;gap:12px}
 
   /* ---------- match hud ---------- */
   #hud{position:fixed;inset:0;pointer-events:none;display:none;z-index:10}
   #hud.show{display:block}
   .topbar{position:absolute;top:0;left:0;right:0;padding:10px 10px 6px;display:flex;gap:10px;align-items:flex-start}
-  .portrait{width:48px;height:48px;image-rendering:pixelated;border:3px solid #000;border-radius:10px;
-    background:#241748;box-shadow:3px 3px 0 #000;flex:none}
+  .portrait{width:48px;height:48px;border:3px solid #000;border-radius:10px;
+    background:#1d1630;box-shadow:3px 3px 0 #000;flex:none}
   .rivalinfo{flex:1;min-width:0}
   .rivalname{font-family:var(--shout);font-size:16px;text-shadow:2px 2px 0 #000}
   .rulechip{display:inline-block;font-size:9px;font-family:var(--shout);background:var(--pink);color:#fff;
@@ -82,14 +92,14 @@
   .bark{position:absolute;top:60px;left:66px;right:60px;background:#fff;color:var(--ink);font-size:12px;
     border:3px solid #000;border-radius:12px;padding:6px 10px;display:none;box-shadow:3px 3px 0 #000;z-index:11}
   .caps{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;max-width:120px}
-  .caps img{width:26px;height:26px;image-rendering:pixelated;border-radius:50%;border:2px solid #000}
+  .caps img{width:26px;height:26px;border-radius:50%;border:2px solid #000}
   .capslabel{font-size:9px;opacity:.7;text-align:right}
   .botbar{position:absolute;bottom:0;left:0;right:0;padding:8px 10px calc(10px + env(safe-area-inset-bottom))}
   .turnrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
   #turntext{font-family:var(--shout);font-size:14px;color:var(--cyan);text-shadow:2px 2px 0 #000}
   #yourcaps{display:flex;gap:4px;flex-wrap:wrap}
-  #yourcaps img{width:30px;height:30px;image-rendering:pixelated;border-radius:50%;border:2px solid #000}
-  #powwrap{height:20px;background:#241748;border:3px solid #000;border-radius:10px;overflow:hidden;
+  #yourcaps img{width:30px;height:30px;border-radius:50%;border:2px solid #000}
+  #powwrap{height:20px;background:#1d1630;border:3px solid #000;border-radius:10px;overflow:hidden;
     box-shadow:3px 3px 0 #000;visibility:hidden}
   #powfill{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--pop),var(--pink))}
   #hint{font-size:11px;opacity:.75;text-align:center;margin-top:5px}
@@ -106,9 +116,9 @@
     100%{opacity:0;margin-top:-46px;transform:translate(-50%,-50%) scale(1)}}
 
   .resultlist{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:320px}
-  .resultlist img{width:38px;height:38px;image-rendering:pixelated;border-radius:50%;border:2px solid #000}
+  .resultlist img{width:38px;height:38px;border-radius:50%;border:2px solid #000}
   .lostimg{filter:grayscale(1) brightness(.6)}
-  .courtline{font-size:12px;color:var(--cyan);letter-spacing:1px}
+  .courtline{font-size:11px;color:var(--cyan);letter-spacing:1px;text-align:center;max-width:94vw}
 </style>
 </head>
 <body>
@@ -169,6 +179,8 @@
 </div>
 <div id="banner"></div>
 <div id="fx"></div>
+<div id="grain"></div>
+<div id="grade"></div>
 
 <!-- RESULT -->
 <div class="screen" id="result">
@@ -196,7 +208,7 @@
 /* ================================================================
    SLAMMERS — playing-for-keeps tazo roguelite (proof of concept)
    ================================================================ */
-var VERSION = '0.2.0';
+var VERSION = '0.3.0';
 var AUTO = /[?&]auto=1/.test(location.search);
 
 /* ---------- diagnostics: breadcrumbs, error banner, version ---------- */
@@ -248,275 +260,141 @@ var TUNE = {
 };
 
 /* ================================================================
-   DESIGNS — 11x11 pixel grids. '.' = bg. New tazo = ~12 lines.
+   DESIGNS — vector layer specs, drawn to 256px canvas textures.
+   Coordinate space is 0..100. New tazo = a bg gradient + ~6 layers.
    ================================================================ */
 var DESIGNS = {
-  smiley: { name:'SMILEY', rarity:'common', effect:null, fxdesc:'', bg:'#2a1a4d',
-    pal:{ y:'#ffd23f', k:'#14082b' },
-    grid:[ '..yyyyyyy..',
-           '.yyyyyyyyy.',
-           'yyyyyyyyyyy',
-           'yykyyyyykyy',
-           'yykyyyyykyy',
-           'yyyyyyyyyyy',
-           'ykyyyyyyyky',
-           'yykyyyyykyy',
-           'yyykkkkkyyy',
-           '.yyyyyyyyy.',
-           '..yyyyyyy..' ] },
-  pizza: { name:'ZA SLICE', rarity:'common', effect:null, fxdesc:'', bg:'#2a1a4d',
-    pal:{ c:'#e8b04a', r:'#d43a2f', p:'#7a1f1f', h:'#f5d78e' },
-    grid:[ 'rrrrrrrrrrr',
-           'rhhhhhhhhhr',
-           '.ccccccccc.',
-           '.cpccccpcc.',
-           '.ccccccccc.',
-           '..ccpcccc..',
-           '..ccccpcc..',
-           '...ccccc...',
-           '...cpccc...',
-           '....ccc....',
-           '.....c.....' ] },
-  alien: { name:'GRAYBO', rarity:'common', effect:null, fxdesc:'', bg:'#122631',
-    pal:{ g:'#7cf25a', k:'#14082b' },
-    grid:[ '...ggggg...',
-           '..ggggggg..',
-           '.ggggggggg.',
-           '.gkkgggkkg.',
-           '.gkkgggkkg.',
-           '.ggggggggg.',
-           '..ggggggg..',
-           '...ggggg...',
-           '....ggg....',
-           '....ggg....',
-           '.....g.....' ] },
-  star: { name:'GOLD STAR', rarity:'common', effect:null, fxdesc:'', bg:'#3a1657',
-    pal:{ y:'#ffd23f', o:'#ff9f1c' },
-    grid:[ '.....y.....',
-           '....yyy....',
-           '....yoy....',
-           'yyyyyoyyyyy',
-           '.yyoooooyy.',
-           '..yoooooy..',
-           '...yoooy...',
-           '...yoooy...',
-           '..yoy.yoy..',
-           '..yy...yy..',
-           '.y.......y.' ] },
-  skull: { name:'RAD SKULL', rarity:'common', effect:null, fxdesc:'', bg:'#1c1030',
-    pal:{ w:'#e9e4f0', k:'#14082b' },
-    grid:[ '...wwwww...',
-           '..wwwwwww..',
-           '.wwwwwwwww.',
-           '.wkkwwwkkw.',
-           '.wkkwwwkkw.',
-           '.wwwwkwwww.',
-           '..wwwwwww..',
-           '..wkwkwkw..',
-           '..wwwwwww..',
-           '...w.w.w...',
-           '...........' ] },
-  cat: { name:'STREET CAT', rarity:'common', effect:null, fxdesc:'', bg:'#31234f',
-    pal:{ o:'#ff9f1c', k:'#14082b', p:'#ff2e88', w:'#e9e4f0' },
-    grid:[ '.o.......o.',
-           '.oo.....oo.',
-           '.oooooooo o',
-           '.ooooooooo.',
-           '.okoooooko.',
-           '.ooooooooo.',
-           '.oopopopoo.',
-           '.ooo.p.ooo.',
-           '..ooooooo..',
-           '...ooooo...',
-           '...........' ] },
-  hypno: { name:'HYPNO', rarity:'common', effect:null, fxdesc:'', bg:'#14082b',
-    pal:{ p:'#b14aed', w:'#e9e4f0' },
-    grid:[ '.wwwwwwwww.',
-           'wpppppppppw',
-           'wp.......pw',
-           'wp.wwwww.pw',
-           'wp.w...w.pw',
-           'wp.w.p.w.pw',
-           'wp.w.pww.pw',
-           'wp.w.....pw',
-           'wp.wwwwwww.',
-           'wp.........',
-           '.wwwwwwwww.' ] },
-  duck: { name:'KAIJUDUCK', rarity:'common', effect:null, fxdesc:'', bg:'#0f2f38',
-    pal:{ y:'#ffd23f', o:'#ff9f1c', k:'#14082b', r:'#d43a2f' },
-    grid:[ '....yyy....',
-           '...yyyyy...',
-           '...ykyyy...',
-           '..ooyyyy...',
-           '...yyyyyy..',
-           '....yyyyyy.',
-           '..yyyyyyyy.',
-           '.yyyyyyyyy.',
-           '.yyyyyyyy..',
-           '..ryyyyr...',
-           '...r..r....' ] },
-  rubber: { name:'RUBBER', rarity:'rare', effect:'rubber', fxdesc:'can bounce back over', bg:'#241748',
-    pal:{ r:'#ff4b5c', w:'#ffd9de' },
-    grid:[ '...rrrrr...',
-           '..rrrrrrr..',
-           '.rrwwrrrrr.',
-           'rrwwrrrrrrr',
-           'rrwrrrrrrrr',
-           'rrrrrrrrrrr',
-           'rrrrrrrrrrr',
-           'rrrrrrrrrrr',
-           '.rrrrrrrrr.',
-           '..rrrrrrr..',
-           '...rrrrr...' ] },
-  double: { name:'TWO-FACE', rarity:'rare', effect:'double', fxdesc:'flipped however it lands', bg:'#14082b',
-    pal:{ o:'#ff9f1c', c:'#35e0e6' },
-    grid:[ '...ooccc...',
-           '..ooooccc..',
-           '.ooooCCCcc.',
-           'oooooccccc.',
-           'ooooocccccc',
-           'ooooocccccc',
-           'ooooocccccc',
-           '.ooooccccc.',
-           '.ooooCCCcc.',
-           '..ooocccc..',
-           '...ooccc...' ] },
-  whoopee: { name:'THE WHOOPEE', rarity:'rare', effect:'whoopee', fxdesc:'detonates on flip', bg:'#3a1030',
-    pal:{ p:'#ff8fc7', d:'#d6529c', k:'#14082b' },
-    grid:[ '...........',
-           '..ppppppp..',
-           '.ppppppppp.',
-           'pppdddddppp',
-           'ppdppppppdp',
-           'ppdppppppdp',
-           'pppdddddppp',
-           '.ppppppppp.',
-           '..ppppppp..',
-           '....pkp....',
-           '.....k.....' ] },
-  vhs: { name:'CURSED VHS', rarity:'rare', effect:'cursed', fxdesc:'flips one of YOURS back', bg:'#0b0b12',
-    pal:{ k:'#23232e', m:'#ff2e88', w:'#e9e4f0', g:'#35e0e6' },
-    grid:[ 'kkkkkkkkkkk',
-           'kwwwwwwwwwk',
-           'kkkkkkkkkkk',
-           'kmmmmmmmmmk',
-           'kkkkkkkkkkk',
-           'kkgggggggkk',
-           'kkkkkkkkkkk',
-           'kmkkkkkkkmk',
-           'kkmmmmmmmkk',
-           'kkkkkkkkkkk',
-           'kkkkkkkkkkk' ] },
-  mecha: { name:'MECHA-TAZO', rarity:'legendary', effect:'mecha', fxdesc:'chain-flips neighbors', bg:'#101820',
-    pal:{ s:'#9db2c7', d:'#5c6f85', r:'#ff2e30', y:'#ffd23f' },
-    grid:[ '..sssssss..',
-           '.sssssssss.',
-           'ssdddddddss',
-           'ssrddddd rss',
-           'ssrdddddrss',
-           'ssdddddddss',
-           'sssyyyyysss',
-           '.ssydydyss.',
-           '.sssyyysss.',
-           '..sssssss..',
-           '...s.s.s...' ] },
+  smiley: { name:'SMILEY', rarity:'common', effect:null, fxdesc:'', bg:['#ffe08a','#e8a53d'],
+    art:[ {t:'dot',x:38,y:42,r:4.5,col:'#2a2018'}, {t:'dot',x:62,y:42,r:4.5,col:'#2a2018'},
+          {t:'arc',x:50,y:50,r:17,a0:0.5,a1:2.64,w:4.5,col:'#2a2018'},
+          {t:'dot',x:29,y:56,r:4.5,col:'rgba(220,110,80,0.5)'}, {t:'dot',x:71,y:56,r:4.5,col:'rgba(220,110,80,0.5)'} ] },
+  pizza: { name:'ZA SLICE', rarity:'common', effect:null, fxdesc:'', bg:['#2c2338','#151020'],
+    art:[ {t:'poly',pts:[[28,28],[72,28],[50,84]],col:'#f0c063'},
+          {t:'rect',x:24,y:20,w:52,h:12,rr:6,col:'#d69a3e'},
+          {t:'dot',x:44,y:40,r:5,col:'#b8382c'}, {t:'dot',x:58,y:46,r:5,col:'#b8382c'}, {t:'dot',x:49,y:58,r:4.5,col:'#b8382c'} ] },
+  alien: { name:'GRAYBO', rarity:'common', effect:null, fxdesc:'', bg:['#1e3d2c','#0c2016'],
+    art:[ {t:'ell',x:50,y:47,rx:20,ry:26,col:'#7ed957'},
+          {t:'ell',x:42,y:45,rx:6.5,ry:11,rot:0.45,col:'#132015'}, {t:'ell',x:58,y:45,rx:6.5,ry:11,rot:-0.45,col:'#132015'},
+          {t:'arc',x:50,y:58,r:6,a0:0.6,a1:2.5,w:2.5,col:'#132015'},
+          {t:'dot',x:44,y:43,r:1.8,col:'rgba(255,255,255,0.7)'}, {t:'dot',x:60,y:43,r:1.8,col:'rgba(255,255,255,0.7)'} ] },
+  star: { name:'GOLD STAR', rarity:'common', effect:null, fxdesc:'', bg:['#3d2e63','#1f1440'],
+    art:[ {t:'star',x:50,y:52,r1:31,r2:13.5,n:5,col:'#f5c542'},
+          {t:'star',x:50,y:52,r1:20,r2:8.5,n:5,col:'#ffe9a0'},
+          {t:'dot',x:70,y:26,r:3,col:'#fff'}, {t:'dot',x:26,y:32,r:2,col:'rgba(255,255,255,0.7)'} ] },
+  skull: { name:'RAD SKULL', rarity:'common', effect:null, fxdesc:'', bg:['#242038','#100d1c'],
+    art:[ {t:'ell',x:50,y:44,rx:22,ry:20,col:'#e9e2f0'},
+          {t:'rect',x:39,y:57,w:22,h:14,rr:6,col:'#e9e2f0'},
+          {t:'dot',x:42,y:44,r:5.5,col:'#100d1c'}, {t:'dot',x:58,y:44,r:5.5,col:'#100d1c'},
+          {t:'poly',pts:[[50,50],[46,57],[54,57]],col:'#100d1c'},
+          {t:'line',x0:45,y0:60,x1:45,y1:68,w:2,col:'#8d84a0'}, {t:'line',x0:50,y0:60,x1:50,y1:69,w:2,col:'#8d84a0'},
+          {t:'line',x0:55,y0:60,x1:55,y1:68,w:2,col:'#8d84a0'} ] },
+  cat: { name:'STREET CAT', rarity:'common', effect:null, fxdesc:'', bg:['#3a2842','#1c1226'],
+    art:[ {t:'poly',pts:[[30,32],[37,13],[46,29]],col:'#e8863d'}, {t:'poly',pts:[[54,29],[63,13],[70,32]],col:'#e8863d'},
+          {t:'dot',x:50,y:50,r:24,col:'#e8863d'},
+          {t:'poly',pts:[[34,30],[38,20],[43,28]],col:'#c95c78'}, {t:'poly',pts:[[57,28],[62,20],[66,30]],col:'#c95c78'},
+          {t:'dot',x:41,y:46,r:4,col:'#241c14'}, {t:'dot',x:59,y:46,r:4,col:'#241c14'},
+          {t:'poly',pts:[[50,54],[46,58],[54,58]],col:'#c95c78'},
+          {t:'line',x0:24,y0:52,x1:38,y1:55,w:1.8,col:'rgba(36,28,20,0.8)'}, {t:'line',x0:24,y0:60,x1:38,y1:59,w:1.8,col:'rgba(36,28,20,0.8)'},
+          {t:'line',x0:62,y0:55,x1:76,y1:52,w:1.8,col:'rgba(36,28,20,0.8)'}, {t:'line',x0:62,y0:59,x1:76,y1:60,w:1.8,col:'rgba(36,28,20,0.8)'} ] },
+  hypno: { name:'HYPNO', rarity:'common', effect:null, fxdesc:'', bg:['#241238','#0f081c'],
+    art:[ {t:'ring',x:50,y:50,r:31,w:6,col:'#a44de0'}, {t:'ring',x:50,y:50,r:24,w:6,col:'#e8e0f2'},
+          {t:'ring',x:50,y:50,r:17,w:6,col:'#a44de0'}, {t:'ring',x:50,y:50,r:10,w:6,col:'#e8e0f2'},
+          {t:'dot',x:50,y:50,r:4.5,col:'#a44de0'} ] },
+  duck: { name:'KAIJUDUCK', rarity:'common', effect:null, fxdesc:'', bg:['#12333c','#071a20'],
+    art:[ {t:'poly',pts:[[38,32],[42,17],[49,29]],col:'#c23a2c'}, {t:'poly',pts:[[51,29],[58,15],[63,31]],col:'#c23a2c'},
+          {t:'dot',x:50,y:52,r:24,col:'#f5c542'},
+          {t:'ell',x:50,y:60,rx:11,ry:6.5,col:'#e8863d'},
+          {t:'line',x0:50,y0:60,x1:61,y1:60,w:1.5,col:'rgba(90,40,10,0.6)'},
+          {t:'dot',x:42,y:44,r:3.5,col:'#1c1408'},
+          {t:'line',x0:36,y0:38,x1:46,y1:41,w:2.5,col:'#1c1408'} ] },
+  rubber: { name:'RUBBER', rarity:'rare', effect:'rubber', fxdesc:'can bounce back over', bg:['#4d1622','#260a12'],
+    art:[ {t:'dot',x:50,y:52,r:27,col:'#e04b5c'},
+          {t:'dot',x:50,y:52,r:27,col:'rgba(0,0,0,0)'},
+          {t:'ell',x:40,y:41,rx:9,ry:5.5,rot:0.55,col:'rgba(255,220,225,0.8)'},
+          {t:'dot',x:59,y:64,r:3,col:'rgba(120,20,30,0.5)'} ] },
+  double: { name:'TWO-FACE', rarity:'rare', effect:'double', fxdesc:'flipped however it lands', bg:['#1a1226','#0d0916'],
+    art:[ {t:'wedge',x:50,y:50,r:29,a0:1.5708,a1:4.7124,col:'#e8863d'},
+          {t:'wedge',x:50,y:50,r:29,a0:-1.5708,a1:1.5708,col:'#3fbfa8'},
+          {t:'dot',x:50,y:34,r:5.5,col:'#e8863d'}, {t:'dot',x:50,y:66,r:5.5,col:'#3fbfa8'} ] },
+  whoopee: { name:'THE WHOOPEE', rarity:'rare', effect:'whoopee', fxdesc:'detonates on flip', bg:['#3d1232','#1c0818'],
+    art:[ {t:'dot',x:45,y:50,r:24,col:'#f28fc0'},
+          {t:'ring',x:45,y:50,r:16,w:3,col:'#d6559c'},
+          {t:'poly',pts:[[64,44],[88,48],[64,57]],col:'#f28fc0',str:'#d6559c',sw:1.5},
+          {t:'line',x0:88,y0:40,x1:94,y1:36,w:2,col:'rgba(255,255,255,0.5)'},
+          {t:'line',x0:90,y0:50,x1:97,y1:50,w:2,col:'rgba(255,255,255,0.5)'},
+          {t:'line',x0:88,y0:58,x1:94,y1:62,w:2,col:'rgba(255,255,255,0.5)'} ] },
+  vhs: { name:'CURSED VHS', rarity:'rare', effect:'cursed', fxdesc:'flips one of YOURS back', bg:['#16121c','#08060c'],
+    art:[ {t:'rect',x:18,y:30,w:64,h:40,rr:4,col:'#20202c',str:'#3c3c4c',sw:1.5},
+          {t:'rect',x:22,y:34,w:56,h:6,rr:2,col:'#c23a56'},
+          {t:'rect',x:29,y:44,w:42,h:13,rr:3,col:'#0c0a12'},
+          {t:'dot',x:37,y:50,r:5.5,col:'#1c1c26'}, {t:'ring',x:37,y:50,r:5.5,w:1.5,col:'#8d8da0'},
+          {t:'dot',x:63,y:50,r:5.5,col:'#1c1c26'}, {t:'ring',x:63,y:50,r:5.5,w:1.5,col:'#8d8da0'},
+          {t:'line',x0:18,y0:76,x1:82,y1:76,w:2,col:'rgba(194,58,86,0.6)'},
+          {t:'line',x0:18,y0:80,x1:82,y1:80,w:1.5,col:'rgba(63,191,168,0.5)'} ] },
+  mecha: { name:'MECHA-TAZO', rarity:'legendary', effect:'mecha', fxdesc:'chain-flips neighbors', bg:['#1c2434','#0b101a'],
+    art:[ {t:'line',x0:50,y0:26,x1:50,y1:13,w:2.5,col:'#55677d'}, {t:'dot',x:50,y:12,r:3,col:'#ff4b3d'},
+          {t:'rect',x:28,y:26,w:44,h:46,rr:9,col:'#8fa3ba'},
+          {t:'rect',x:33,y:40,w:34,h:13,rr:4,col:'#160a0e'},
+          {t:'rect',x:36,y:43,w:28,h:7,rr:3,col:'#ff4b3d'},
+          {t:'dot',x:33,y:32,r:1.8,col:'#55677d'}, {t:'dot',x:67,y:32,r:1.8,col:'#55677d'},
+          {t:'dot',x:33,y:67,r:1.8,col:'#55677d'}, {t:'dot',x:67,y:67,r:1.8,col:'#55677d'},
+          {t:'line',x0:40,y0:60,x1:60,y1:60,w:2,col:'#55677d'}, {t:'line',x0:42,y0:64,x1:58,y1:64,w:2,col:'#55677d'} ] },
   /* --- slammers & back --- */
-  slammy: { name:'SLAMMY', rarity:'slammer', effect:null, fxdesc:'', bg:'#14082b',
-    pal:{ y:'#ffd23f', p:'#ff2e88' },
-    grid:[ 'ppppppppppp',
-           'p.........p',
-           'p....yy...p',
-           'p...yy....p',
-           'p..yyyyy..p',
-           'p....yy...p',
-           'p...yy....p',
-           'p..yy.....p',
-           'p.........p',
-           'p.........p',
-           'ppppppppppp' ] },
-  metal: { name:'MINTY (METAL)', rarity:'slammer', effect:null, fxdesc:'', bg:'#3f4a58',
-    pal:{ s:'#c8d4e2', d:'#7d8ea1', w:'#f2f6fa' },
-    grid:[ 'sssssssssss',
-           'sdddddddd ds',
-           'sdsssssssds',
-           'sdswwsssds.',
-           'sdsswsssds.',
-           'sdssssssds.',
-           'sdsssssssd.',
-           'sdsssssssds',
-           'sdddddddd ds',
-           'sssssssssss',
-           'sssssssssss' ] },
-  back: { name:'BACK', rarity:'back', effect:null, fxdesc:'', bg:'#241748',
-    pal:{ p:'#ff2e88', c:'#35e0e6' },
-    grid:[ '...ccccc...',
-           '..c.....c..',
-           '.c..ppp..c.',
-           'c..p...p..c',
-           'c.p..c..p.c',
-           'c.p.ccc.p.c',
-           'c.p..c..p.c',
-           'c..p...p..c',
-           '.c..ppp..c.',
-           '..c.....c..',
-           '...ccccc...' ] },
-  /* --- rival portraits (same pipeline) --- */
-  face_milo: { name:'MILO', rarity:'face', effect:null, fxdesc:'', bg:'#241748',
-    pal:{ g:'#3fae4e', s:'#f2c99a', k:'#14082b', r:'#d43a2f' },
-    grid:[ '..ggggggg..',
-           '.ggggggggg.',
-           'ggggggggggg',
-           '.sssssssss.',
-           '.skssssks s',
-           '.sssssssss.',
-           '.ssskksss..',
-           '.sssssssss.',
-           '..ssrrsss..',
-           '...ssss....',
-           '..r.....r..' ] },
-  face_cheater: { name:'THE CHEATER', rarity:'face', effect:null, fxdesc:'', bg:'#241748',
-    pal:{ b:'#2b4bd4', s:'#e2a875', k:'#14082b', w:'#e9e4f0' },
-    grid:[ 'bbbbbbb....',
-           'bbbbbbbbb..',
-           '.sssssssss.',
-           '.skkssskks.',
-           '.swkssswks.',
-           '.sssssssss.',
-           '.sssssssss.',
-           '.ssskkkss..',
-           '.sskssss...',
-           '..ssssss...',
-           '...........' ] },
-  face_richkid: { name:'THE RICH KID', rarity:'face', effect:null, fxdesc:'', bg:'#241748',
-    pal:{ y:'#e8c84a', s:'#f2c99a', k:'#14082b', w:'#e9e4f0', g:'#ffd23f' },
-    grid:[ '.yyyyyyyyy.',
-           'yyyyyyyyyyy',
-           'ysssssssssy',
-           '.skkssskks.',
-           '.sggssggss.',
-           '.sssssssss.',
-           '.sssskssss.',
-           '.sssssssss.',
-           '.ssskkksss.',
-           '..sssssss..',
-           '...wwwww...' ] }
+  slammy: { name:'SLAMMY', rarity:'slammer', effect:null, fxdesc:'', bg:['#241744','#0f0824'],
+    art:[ {t:'ring',x:50,y:50,r:31,w:3,col:'#e8a53d'},
+          {t:'poly',pts:[[57,16],[37,52],[49,52],[43,84],[67,44],[53,44]],col:'#f5c542'} ] },
+  metal: { name:'MINTY (METAL)', rarity:'slammer', effect:null, fxdesc:'', bg:['#dfe6ee','#7d8ea1'],
+    art:[ {t:'ring',x:50,y:50,r:27,w:2,col:'rgba(60,70,85,0.5)'}, {t:'ring',x:50,y:50,r:20,w:2,col:'rgba(60,70,85,0.4)'},
+          {t:'ring',x:50,y:50,r:13,w:2,col:'rgba(60,70,85,0.3)'},
+          {t:'dot',x:50,y:50,r:6,col:'#6d7b8d'}, {t:'line',x0:46,y0:50,x1:54,y1:50,w:2,col:'#38424e'},
+          {t:'dot',x:50,y:22,r:2.5,col:'#6d7b8d'}, {t:'dot',x:50,y:78,r:2.5,col:'#6d7b8d'},
+          {t:'dot',x:22,y:50,r:2.5,col:'#6d7b8d'}, {t:'dot',x:78,y:50,r:2.5,col:'#6d7b8d'} ] },
+  back: { name:'BACK', rarity:'back', effect:null, fxdesc:'', bg:['#1d1433','#0c081c'],
+    art:[ {t:'ring',x:50,y:50,r:30,w:3,col:'#6d5aa8'},
+          {t:'star',x:50,y:50,r1:13,r2:5.5,n:5,col:'#8a76c8'},
+          {t:'dot',x:50,y:20,r:2,col:'#6d5aa8'}, {t:'dot',x:50,y:80,r:2,col:'#6d5aa8'},
+          {t:'dot',x:20,y:50,r:2,col:'#6d5aa8'}, {t:'dot',x:80,y:50,r:2,col:'#6d5aa8'} ] },
+  /* --- rival portraits (same pipeline, no disc finish) --- */
+  face_milo: { name:'MILO', rarity:'face', effect:null, fxdesc:'', bg:['#28331f','#131a0d'],
+    art:[ {t:'dot',x:50,y:58,r:23,col:'#f2c99a'},
+          {t:'wedge',x:50,y:46,r:25,a0:3.1416,a1:6.2832,col:'#3fae4e'},
+          {t:'rect',x:24,y:42,w:52,h:8,rr:4,col:'#2e8a3c'},
+          {t:'dot',x:42,y:58,r:3.5,col:'#241c14'}, {t:'dot',x:58,y:58,r:3.5,col:'#241c14'},
+          {t:'dot',x:36,y:66,r:1.5,col:'rgba(150,90,50,0.7)'}, {t:'dot',x:41,y:68,r:1.5,col:'rgba(150,90,50,0.7)'},
+          {t:'dot',x:62,y:67,r:1.5,col:'rgba(150,90,50,0.7)'},
+          {t:'arc',x:50,y:64,r:9,a0:0.6,a1:2.55,w:3,col:'#8d4a3a'} ] },
+  face_cheater: { name:'THE CHEATER', rarity:'face', effect:null, fxdesc:'', bg:['#1c2233','#0d1019'],
+    art:[ {t:'dot',x:50,y:56,r:23,col:'#e2a875'},
+          {t:'wedge',x:52,y:44,r:25,a0:3.3,a1:6.1,col:'#2b4bd4'},
+          {t:'poly',pts:[[70,30],[92,38],[74,46]],col:'#2338a8'},
+          {t:'line',x0:36,y0:54,x1:46,y1:56,w:3,col:'#241c14'},
+          {t:'dot',x:60,y:56,r:3.5,col:'#241c14'},
+          {t:'arc',x:54,y:66,r:9,a0:-0.3,a1:1.2,w:3,col:'#8d4a3a'} ] },
+  face_richkid: { name:'THE RICH KID', rarity:'face', effect:null, fxdesc:'', bg:['#2e2618','#16110a'],
+    art:[ {t:'dot',x:50,y:57,r:23,col:'#f2c99a'},
+          {t:'wedge',x:50,y:47,r:26,a0:3.1416,a1:6.2832,col:'#e0bd4e'},
+          {t:'ell',x:30,y:52,rx:6,ry:12,col:'#e0bd4e'}, {t:'ell',x:70,y:52,rx:6,ry:12,col:'#e0bd4e'},
+          {t:'rect',x:33,y:52,w:14,h:9,rr:3,col:'#181420',str:'#c8a838',sw:1.5},
+          {t:'rect',x:53,y:52,w:14,h:9,rr:3,col:'#181420',str:'#c8a838',sw:1.5},
+          {t:'line',x0:47,y0:55,x1:53,y1:55,w:2,col:'#c8a838'},
+          {t:'arc',x:50,y:68,r:7,a0:3.5,a1:5.9,w:3,col:'#8d4a3a'} ] }
 };
 
 /* ================================================================
    RIVALS — the court, in order. Last one owns the court.
    ================================================================ */
 var RIVALS = [
-  { key:'milo', name:'MILO', face:'face_milo', accent:'#7cf25a', turf:'THE SIDEWALK',
+  { key:'milo', name:'MILO', face:'face_milo', accent:'#8fd97a', turf:'THE SIDEWALK',
     ante:2, acc:0.45, powLo:0.45, powHi:0.75, slammer:'slammy', rule:null,
     binder:['duck','star','skull','rubber','pizza'],
     demand:'"2-for-2. winner keeps \'em. no crying."',
     barks:{ hit:'juice box power!!', ouch:'hey!! that one\'s mine!!', win:'told ya!! TOLD YA!!', lose:'i\'m telling my mom.' } },
-  { key:'cheater', name:'THE CHEATER', face:'face_cheater', accent:'#ffd23f', turf:'THE SCHOOLYARD',
+  { key:'cheater', name:'THE CHEATER', face:'face_cheater', accent:'#e0bd63', turf:'THE SCHOOLYARD',
     ante:3, acc:0.97, powLo:0.5, powHi:0.7, slammer:'slammy', rule:null,
     binder:['vhs','double','skull','alien','hypno','star'],
     demand:'"3-for-3. trust me. when have i ever lied?"',
     barks:{ hit:'house always wins.', ouch:'that one didn\'t count.', win:'better luck never.', lose:'this game is RIGGED!!' } },
-  { key:'richkid', name:'THE RICH KID', face:'face_richkid', accent:'#35e0e6', turf:'THE CUL-DE-SAC',
+  { key:'richkid', name:'THE RICH KID', face:'face_richkid', accent:'#7fd9c0', turf:'THE CUL-DE-SAC',
     ante:3, acc:0.75, powLo:0.75, powHi:1.0, slammer:'metal', rule:'mint',
     ruleName:'MINT CONDITION', ruleDesc:'his tazos resist flips · metal slammer',
     binder:['mecha','duck','vhs','hypno','alien','whoopee'],
@@ -566,34 +444,42 @@ var renderer = new THREE.WebGLRenderer({ canvas: el('gl'), antialias: false, alp
 renderer.setPixelRatio(1);
 var scene = new THREE.Scene();
 var camera = new THREE.PerspectiveCamera(55, 1, 1, 80);
-/* dusk light rig: cool sky bounce + warm low sun so disc rims actually shade */
-scene.add(new THREE.HemisphereLight(0x8f7bff, 0x38254e, 0.8));
-var sun = new THREE.DirectionalLight(0xffd9b0, 0.95);
-sun.position.set(-4, 5, 3);
-scene.add(sun);
+/* night rig: one hot tungsten spot over the court, cold dim bounce */
+scene.add(new THREE.HemisphereLight(0x2e3a5c, 0x0a0710, 0.5));
+var lamp = new THREE.SpotLight(0xffd9a8, 1.35, 0, 0.62, 0.55, 0);
+lamp.position.set(2.4, 8.5, -1.8);
+scene.add(lamp);
+scene.add(lamp.target);
+var fill = new THREE.DirectionalLight(0x3a4a74, 0.35);
+fill.position.set(-5, 3, 4);
+scene.add(fill);
 
 /* floor: asphalt + chalk baked into one texture (no decal z-fights) */
 var FLOOR_R = TUNE.ARENA_R + 2.4;
 function makeFloorTexture(){
   var cv = document.createElement('canvas'); cv.width = cv.height = 512;
   var c = cv.getContext('2d');
-  c.fillStyle = '#342a55'; c.fillRect(0, 0, 512, 512);
+  c.fillStyle = '#181223'; c.fillRect(0, 0, 512, 512);
   for (var i = 0; i < 1100; i++){
     c.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.14)';
     c.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
   }
+  /* baked pool of lamplight, offset toward the streetlight */
+  var pool = c.createRadialGradient(300, 218, 30, 300, 218, 250);
+  pool.addColorStop(0, 'rgba(255,214,170,0.16)'); pool.addColorStop(1, 'rgba(255,214,170,0)');
+  c.fillStyle = pool; c.fillRect(0, 0, 512, 512);
   var px = 256 / FLOOR_R; /* px per world unit */
-  c.strokeStyle = 'rgba(240,235,250,0.28)'; c.lineWidth = 11;
+  c.strokeStyle = 'rgba(240,235,250,0.16)'; c.lineWidth = 11;
   c.beginPath(); c.arc(258, 254, TUNE.ARENA_R * px + 2, 0, 6.3); c.stroke();
-  c.strokeStyle = 'rgba(240,235,250,0.8)'; c.lineWidth = 5;
+  c.strokeStyle = 'rgba(240,235,250,0.45)'; c.lineWidth = 5;
   c.beginPath(); c.arc(256, 256, TUNE.ARENA_R * px, 0, 6.3); c.stroke();
   /* chalk graffiti */
-  c.strokeStyle = 'rgba(240,235,250,0.4)'; c.lineWidth = 4; c.lineCap = 'round';
+  c.strokeStyle = 'rgba(240,235,250,0.22)'; c.lineWidth = 4; c.lineCap = 'round';
   function X(x, y){ c.beginPath(); c.moveTo(x-9,y-9); c.lineTo(x+9,y+9); c.moveTo(x+9,y-9); c.lineTo(x-9,y+9); c.stroke(); }
   X(452, 150); X(72, 340); X(420, 420);
   c.strokeRect(30, 396, 36, 36); c.strokeRect(30, 432, 36, 36); c.strokeRect(66, 414, 36, 36);
   c.font = 'bold 30px "Comic Sans MS", cursive';
-  c.fillStyle = 'rgba(240,235,250,0.55)';
+  c.fillStyle = 'rgba(240,235,250,0.28)';
   c.save(); c.translate(256, 52); c.rotate(-0.06); c.fillText('4 KEEPS', -62, 0); c.restore();
   return new THREE.CanvasTexture(cv);
 }
@@ -605,7 +491,7 @@ scene.add(floor);
 /* curb wall around the court */
 var curb = new THREE.Mesh(
   new THREE.CylinderGeometry(TUNE.ARENA_R + 0.42, TUNE.ARENA_R + 0.42, 0.22, 40, 1, true),
-  new THREE.MeshLambertMaterial({ color: 0x4a3d70, side: THREE.DoubleSide }));
+  new THREE.MeshLambertMaterial({ color: 0x241d33, side: THREE.DoubleSide }));
 curb.position.y = 0.11;
 scene.add(curb);
 /* sidewalk props — cheap primitives, parallax anchors for depth */
@@ -614,16 +500,23 @@ function prop(geo, color, x, y, z, ry){
   m.position.set(x, y, z); m.rotation.y = ry || 0;
   scene.add(m); return m;
 }
-prop(new THREE.CylinderGeometry(0.3, 0.34, 0.72, 10), 0xe04338, 5.0, 0.36, -1.2);   /* hydrant */
-prop(new THREE.CylinderGeometry(0.15, 0.15, 0.2, 8), 0xe04338, 5.0, 0.82, -1.2);
-prop(new THREE.BoxGeometry(0.85, 0.85, 0.85), 0x3468c9, -4.7, 0.43, 1.8, 0.5);      /* milk crate */
-prop(new THREE.CylinderGeometry(0.15, 0.15, 0.42, 10), 0xd8dee8, 4.35, 0.21, 2.75); /* soda can */
-prop(new THREE.BoxGeometry(0.4, 0.07, 0.1), 0xf0ebfa, 2.6, 0.04, -4.2, 0.7);        /* chalk stick */
+prop(new THREE.CylinderGeometry(0.3, 0.34, 0.72, 10), 0x9a3540, 5.0, 0.36, -1.2);   /* hydrant */
+prop(new THREE.CylinderGeometry(0.15, 0.15, 0.2, 8), 0x9a3540, 5.0, 0.82, -1.2);
+prop(new THREE.BoxGeometry(0.85, 0.85, 0.85), 0x2c4a72, -4.7, 0.43, 1.8, 0.5);      /* milk crate */
+prop(new THREE.CylinderGeometry(0.15, 0.15, 0.42, 10), 0x9aa4b2, 4.35, 0.21, 2.75); /* soda can */
+prop(new THREE.BoxGeometry(0.4, 0.07, 0.1), 0xd8d2e0, 2.6, 0.04, -4.2, 0.7);        /* chalk stick */
+/* the streetlight itself — sells the single-source night */
+prop(new THREE.CylinderGeometry(0.07, 0.09, 4.4, 8), 0x1c1826, 3.4, 2.2, -2.9);
+prop(new THREE.BoxGeometry(1.4, 0.1, 0.32), 0x1c1826, 2.85, 4.42, -2.6, -0.5);
+var bulb = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.26),
+  new THREE.MeshBasicMaterial({ color: 0xffe2b0 }));
+bulb.position.set(2.45, 4.36, -2.35); bulb.rotation.y = -0.5;
+scene.add(bulb);
 
 /* aim reticle */
 var reticle = new THREE.Mesh(
   new THREE.RingGeometry(0.5, 0.62, 24),
-  new THREE.MeshBasicMaterial({ color: 0x35e0e6, transparent: true, opacity: 0.9, depthWrite: false }));
+  new THREE.MeshBasicMaterial({ color: 0x7fd9c0, transparent: true, opacity: 0.9, depthWrite: false }));
 reticle.rotation.x = -Math.PI/2; reticle.position.y = 0.03; reticle.visible = false;
 scene.add(reticle);
 
@@ -675,22 +568,76 @@ el('gl').addEventListener('webglcontextlost', function(ev){
    TAZO BUILDER — grid string -> canvas texture -> cylinder mesh
    ================================================================ */
 var texCache = {}, urlCache = {};
+function roundRectPath(c, x, y, w, h, r){
+  r = Math.min(r, w/2, h/2);
+  c.beginPath(); c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+}
+function drawLayer(c, S, L){
+  var s = S / 100;
+  c.save();
+  switch (L.t){
+    case 'dot':
+      c.fillStyle = L.col; c.beginPath(); c.arc(L.x*s, L.y*s, L.r*s, 0, 6.2832); c.fill(); break;
+    case 'ring':
+      c.strokeStyle = L.col; c.lineWidth = L.w*s;
+      c.beginPath(); c.arc(L.x*s, L.y*s, L.r*s, 0, 6.2832); c.stroke(); break;
+    case 'ell':
+      c.translate(L.x*s, L.y*s); c.rotate(L.rot || 0);
+      c.fillStyle = L.col; c.beginPath(); c.ellipse(0, 0, L.rx*s, L.ry*s, 0, 0, 6.2832); c.fill(); break;
+    case 'arc':
+      c.strokeStyle = L.col; c.lineWidth = L.w*s; c.lineCap = 'round';
+      c.beginPath(); c.arc(L.x*s, L.y*s, L.r*s, L.a0, L.a1); c.stroke(); break;
+    case 'line':
+      c.strokeStyle = L.col; c.lineWidth = L.w*s; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(L.x0*s, L.y0*s); c.lineTo(L.x1*s, L.y1*s); c.stroke(); break;
+    case 'rect':
+      c.translate((L.x + L.w/2)*s, (L.y + L.h/2)*s); c.rotate(L.rot || 0);
+      roundRectPath(c, -L.w/2*s, -L.h/2*s, L.w*s, L.h*s, (L.rr || 0)*s);
+      c.fillStyle = L.col; c.fill();
+      if (L.str){ c.strokeStyle = L.str; c.lineWidth = (L.sw || 2)*s; c.stroke(); } break;
+    case 'poly':
+      c.beginPath();
+      L.pts.forEach(function(p, i){ i ? c.lineTo(p[0]*s, p[1]*s) : c.moveTo(p[0]*s, p[1]*s); });
+      c.closePath();
+      if (L.col){ c.fillStyle = L.col; c.fill(); }
+      if (L.str){ c.strokeStyle = L.str; c.lineWidth = (L.sw || 2)*s; c.stroke(); } break;
+    case 'star':
+      c.translate(L.x*s, L.y*s); c.rotate(L.rot || 0); c.beginPath();
+      for (var i = 0; i < L.n*2; i++){
+        var r = (i % 2 ? L.r2 : L.r1)*s, a = i * Math.PI / L.n - Math.PI/2;
+        i ? c.lineTo(Math.cos(a)*r, Math.sin(a)*r) : c.moveTo(Math.cos(a)*r, Math.sin(a)*r);
+      }
+      c.closePath(); c.fillStyle = L.col; c.fill(); break;
+    case 'wedge':
+      c.fillStyle = L.col; c.beginPath(); c.moveTo(L.x*s, L.y*s);
+      c.arc(L.x*s, L.y*s, L.r*s, L.a0, L.a1); c.closePath(); c.fill(); break;
+  }
+  c.restore();
+}
 function paintDesign(key){
   if (texCache[key]) return texCache[key];
-  var d = DESIGNS[key], S = 8, cv = document.createElement('canvas');
-  cv.width = cv.height = 11 * S;
-  var ctx = cv.getContext('2d');
-  ctx.fillStyle = d.bg; ctx.fillRect(0, 0, cv.width, cv.height);
-  for (var y = 0; y < 11; y++){
-    var row = (d.grid[y] || '').replace(/ /g, '.').padEnd(11, '.');
-    for (var x = 0; x < 11; x++){
-      var c = d.pal[row[x]];
-      if (!c) continue;
-      ctx.fillStyle = c; ctx.fillRect(x*S, y*S, S, S);
-    }
+  var d = DESIGNS[key], S = 256, cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  var c = cv.getContext('2d');
+  var g = c.createRadialGradient(S*0.42, S*0.38, S*0.08, S/2, S/2, S*0.64);
+  g.addColorStop(0, d.bg[0]); g.addColorStop(1, d.bg[1]);
+  c.fillStyle = g; c.fillRect(0, 0, S, S);
+  (d.art || []).forEach(function(L){ drawLayer(c, S, L); });
+  /* printed-cap finish: paper grain, worn edge, gloss crescent */
+  for (var i = 0; i < 260; i++){
+    c.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '0,0,0' : '255,255,255') + ',' + (0.02 + Math.random()*0.05).toFixed(3) + ')';
+    c.fillRect(Math.random()*S, Math.random()*S, 2, 2);
+  }
+  if (d.rarity !== 'face'){
+    c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = S*0.07;
+    c.beginPath(); c.arc(S/2, S/2, S*0.485, 0, 6.2832); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,0.2)'; c.lineWidth = S*0.045; c.lineCap = 'round';
+    c.beginPath(); c.arc(S/2, S/2, S*0.4, -2.5, -1.35); c.stroke();
   }
   var tex = new THREE.CanvasTexture(cv);
-  tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.LinearFilter;
   tex.generateMipmaps = false;
   texCache[key] = tex;
   urlCache[key] = cv.toDataURL();
@@ -699,9 +646,9 @@ function paintDesign(key){
 function designURL(key){ paintDesign(key); return urlCache[key]; }
 function makeDisc(key, radius, height, rimColor){
   var geo = new THREE.CylinderGeometry(radius, radius, height, 22);
-  var face = new THREE.MeshLambertMaterial({ map: paintDesign(key) });
-  var back = new THREE.MeshLambertMaterial({ map: paintDesign('back') });
-  var rim = new THREE.MeshLambertMaterial({ color: rimColor || 0x0e0620 });
+  var face = new THREE.MeshPhongMaterial({ map: paintDesign(key), shininess: 42, specular: 0x554433 });
+  var back = new THREE.MeshPhongMaterial({ map: paintDesign('back'), shininess: 42, specular: 0x554433 });
+  var rim = new THREE.MeshPhongMaterial({ color: rimColor || 0x0e0620, shininess: 20, specular: 0x332a22 });
   return new THREE.Mesh(geo, [rim, face, back]);
 }
 
@@ -813,7 +760,7 @@ function openAnte(){
   pp.appendChild(vs);
   for (var i = 0; i < ante; i++){
     var slot = document.createElement('div');
-    slot.className = 'minitz slot' + i; slot.style.cssText = 'width:40px;height:40px;border:2px dashed #666;border-radius:50%;background:#1a103a';
+    slot.className = 'minitz slot' + i; slot.style.cssText = 'width:40px;height:40px;border:2px dashed #666;border-radius:50%;background:#120d1c';
     slot.dataset.slot = i;
     pp.appendChild(slot);
   }
@@ -850,7 +797,7 @@ function toggleStake(i, ante){
   var slots = el('potprev').querySelectorAll('[data-slot]');
   slots.forEach(function(s, si){
     if (anteSel[si] !== undefined){
-      s.style.background = '#241748 url(' + designURL(run.binder[anteSel[si]].key) + ')';
+      s.style.background = '#1d1630 url(' + designURL(run.binder[anteSel[si]].key) + ')';
       s.style.backgroundSize = 'cover'; s.style.borderStyle = 'solid';
     } else { s.style.background = '#1a103a'; s.style.borderStyle = 'dashed'; }
   });
@@ -925,7 +872,7 @@ function beginTurn(side){
       t: 0, dur: AUTO ? 0.25 : 0.9,
       sx: rnd(-2.5, 2.5), sz: rnd(-2.5, 2.5)
     };
-    reticle.material.color.set(0xff2e88);
+    reticle.material.color.set(0xff3d5e);
     reticle.visible = true;
   }
 }
@@ -1082,7 +1029,7 @@ function captureTazo(t, side, chainQ){
     t.disturbed = false; t.faceUp = true;
     t.mesh.rotation.set(0, rnd(0, 6.28), 0);
     t.vel.set(0, 5, 0); t.angVel.set(0, 8, 0); t.settled = false;
-    popupAt3D(t.mesh.position, 'BOING!', '#35e0e6');
+    popupAt3D(t.mesh.position, 'BOING!', '#7fd9c0');
     sfxBoing();
     tlog('  rubber saved: ' + t.design.name);
     return;
@@ -1090,7 +1037,7 @@ function captureTazo(t, side, chainQ){
   t.captured = side;
   dropShadow(t);
   sfxFlip();
-  popupAt3D(t.mesh.position, 'FLIPPED!', side === 'you' ? '#35e0e6' : '#ff2e88');
+  popupAt3D(t.mesh.position, 'FLIPPED!', side === 'you' ? '#7fd9c0' : '#ff3d5e');
   (side === 'you' ? M.yourCaps : M.rivalCaps).push(t);
   addCapThumb(t, side);
   if (side === 'you' && t.stakedBy === 'rival') bark(M.rival.barks.ouch);
@@ -1134,7 +1081,7 @@ function captureTazo(t, side, chainQ){
     M.pot.forEach(function(o){
       if (o.captured || o === t) return;
       if (hdist(o.mesh.position.x, o.mesh.position.z, t.mesh.position.x, t.mesh.position.z) < TUNE.MECHA_R){
-        popupAt3D(o.mesh.position, 'CHAIN!', '#ffd23f');
+        popupAt3D(o.mesh.position, 'CHAIN!', '#f5b93d');
         o.disturbed = true; o.faceUp = false; o.settled = true;
         chainQ.push(o);
       }
@@ -1146,7 +1093,7 @@ function captureTazo(t, side, chainQ){
     var mine = M.pot.filter(function(o){ return !o.captured && o.stakedBy === side; });
     if (mine.length){
       var vict = mine[Math.floor(Math.random() * mine.length)];
-      popupAt3D(vict.mesh.position, 'CURSED!', '#ff2e30');
+      popupAt3D(vict.mesh.position, 'CURSED!', '#ff4b3d');
       vict.disturbed = true; vict.faceUp = false; vict.settled = true;
       if (chainQ){
         var qi = chainQ.indexOf(vict);
@@ -1306,7 +1253,7 @@ el('gl').addEventListener('pointerdown', function(ev){
   if (!p) return;
   mode = 'aim'; aimT = 0;
   aimPos.x = p.x; aimPos.z = p.z;
-  reticle.material.color.set(0x35e0e6);
+  reticle.material.color.set(0x7fd9c0);
   reticle.visible = true;
   el('powwrap').style.visibility = 'visible';
 });
@@ -1456,6 +1403,21 @@ mark('loop-start');
 nextFrame(loop);
 
 /* ---------- boot ---------- */
+/* film-grain tile (one static noise texture, jittered by CSS) */
+(function(){
+  var cv = document.createElement('canvas'); cv.width = cv.height = 160;
+  var c = cv.getContext('2d');
+  var img = c.createImageData(160, 160);
+  for (var i = 0; i < img.data.length; i += 4){
+    var v = 90 + Math.random() * 130;
+    img.data[i] = img.data[i+1] = img.data[i+2] = v;
+    img.data[i+3] = 255;
+  }
+  c.putImageData(img, 0, 0);
+  var g = el('grain');
+  g.style.backgroundImage = 'url(' + cv.toDataURL() + ')';
+  g.style.mixBlendMode = 'overlay';
+})();
 el('courtprev').textContent = RIVALS.map(function(r){ return r.turf; }).join(' → ');
 mark('clean');
 tlog('BOOT ok v' + VERSION);
