@@ -210,7 +210,7 @@
 /* ================================================================
    SLAMMERS — playing-for-keeps tazo roguelite (proof of concept)
    ================================================================ */
-var VERSION = '0.4.0';
+var VERSION = '0.5.0';
 var AUTO = /[?&]auto=1/.test(location.search);
 
 /* ---------- diagnostics: breadcrumbs, error banner, version ---------- */
@@ -248,7 +248,7 @@ var TUNE = {
   BOUNCE_Y: 0.38,      // floor bounce restitution
   FRIC_XZ: 0.86,       // horizontal damping per floor contact
   ANG_DAMP_AIR: 0.995,
-  ANG_DAMP_GND: 0.90,
+  ANG_DAMP_GND: 0.89,
   SETTLE_V: 1.1,       // speed threshold -> begin wobble-down
   SETTLE_W: 2.4,       // angular threshold
   DRAG_AIR: 0.72,      // per-second air drag on velocity (cardboard, not steel)
@@ -263,7 +263,7 @@ var TUNE = {
   RUBBER_SAVE: 0.45,   // chance a flipped rubber tazo re-flips back
   ARENA_R: 3.6,
   TAZO_R: 0.5,
-  TAZO_H: 0.09
+  TAZO_H: 0.18
 };
 
 /* ================================================================
@@ -509,9 +509,9 @@ floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 /* curb wall around the court */
 var curb = new THREE.Mesh(
-  new THREE.CylinderGeometry(TUNE.ARENA_R + 0.42, TUNE.ARENA_R + 0.42, 0.22, 40, 1, true),
+  new THREE.CylinderGeometry(TUNE.ARENA_R + 0.42, TUNE.ARENA_R + 0.42, 0.3, 40, 1, true),
   new THREE.MeshLambertMaterial({ color: 0x241d33, side: THREE.DoubleSide }));
-curb.position.y = 0.11;
+curb.position.y = 0.15;
 scene.add(curb);
 /* sidewalk props — cheap primitives, parallax anchors for depth */
 function prop(geo, color, x, y, z, ry){
@@ -652,6 +652,11 @@ function paintDesign(key){
   if (d.rarity !== 'face'){
     c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = S*0.07;
     c.beginPath(); c.arc(S/2, S/2, S*0.485, 0, 6.2832); c.stroke();
+    /* embossed inset ring: the face sits recessed in a solid puck */
+    c.strokeStyle = 'rgba(0,0,0,0.32)'; c.lineWidth = S*0.014;
+    c.beginPath(); c.arc(S/2, S/2, S*0.425, 0, 6.2832); c.stroke();
+    c.strokeStyle = 'rgba(255,255,255,0.14)'; c.lineWidth = S*0.01;
+    c.beginPath(); c.arc(S/2, S/2, S*0.443, 0, 6.2832); c.stroke();
     c.strokeStyle = 'rgba(255,255,255,0.2)'; c.lineWidth = S*0.045; c.lineCap = 'round';
     c.beginPath(); c.arc(S/2, S/2, S*0.4, -2.5, -1.35); c.stroke();
   }
@@ -663,11 +668,46 @@ function paintDesign(key){
   return tex;
 }
 function designURL(key){ paintDesign(key); return urlCache[key]; }
-function makeDisc(key, radius, height, rimColor){
-  var geo = new THREE.CylinderGeometry(radius, radius, height, 22);
+function shade(hex, f){
+  var n = parseInt(hex.slice(1), 16);
+  var r = Math.min(255, Math.round(((n >> 16) & 255) * f));
+  var g = Math.min(255, Math.round(((n >> 8) & 255) * f));
+  var b = Math.min(255, Math.round((n & 255) * f));
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+/* rim: casino-chip edge spots + laminated layers + chamfer shading */
+var rimCache = {};
+function paintRim(key){
+  if (rimCache[key]) return rimCache[key];
+  var d = DESIGNS[key], W = 512, H = 64;
+  var cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  var c = cv.getContext('2d');
+  c.fillStyle = shade(d.bg[1], 0.72); c.fillRect(0, 0, W, H);
+  c.fillStyle = shade(d.bg[0], 1.12);
+  for (var i = 0; i < 8; i++) c.fillRect(i * 64 + 18, 0, 28, H);
+  c.fillStyle = 'rgba(0,0,0,0.22)';
+  [15, 27, 39, 51].forEach(function(y){ c.fillRect(0, y, W, 2); });
+  for (var j = 0; j < 260; j++){
+    c.fillStyle = 'rgba(' + (Math.random() < 0.5 ? '0,0,0' : '255,255,255') + ',' + (0.02 + Math.random()*0.05).toFixed(3) + ')';
+    c.fillRect(Math.random()*W, Math.random()*H, 2, 2);
+  }
+  var gt = c.createLinearGradient(0, 0, 0, 12);
+  gt.addColorStop(0, 'rgba(255,246,230,0.3)'); gt.addColorStop(1, 'rgba(255,246,230,0)');
+  c.fillStyle = gt; c.fillRect(0, 0, W, 12);
+  var gb = c.createLinearGradient(0, H, 0, H - 14);
+  gb.addColorStop(0, 'rgba(0,0,0,0.5)'); gb.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = gb; c.fillRect(0, H - 14, W, 14);
+  var tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = THREE.RepeatWrapping; tex.repeat.set(2, 1);
+  tex.minFilter = THREE.LinearFilter; tex.generateMipmaps = false;
+  rimCache[key] = tex;
+  return tex;
+}
+function makeDisc(key, radius, height){
+  var geo = new THREE.CylinderGeometry(radius, radius, height, 28);
   var face = new THREE.MeshPhongMaterial({ map: paintDesign(key), shininess: 42, specular: 0x554433 });
   var back = new THREE.MeshPhongMaterial({ map: paintDesign('back'), shininess: 42, specular: 0x554433 });
-  var rim = new THREE.MeshPhongMaterial({ color: rimColor || 0x0e0620, shininess: 20, specular: 0x332a22 });
+  var rim = new THREE.MeshPhongMaterial({ map: paintRim(key), shininess: 26, specular: 0x40352a });
   return new THREE.Mesh(geo, [rim, face, back]);
 }
 
@@ -964,7 +1004,7 @@ function doSlam(side, x, z, pow){
   var a = Math.atan2(z, x);
   x = Math.cos(a) * r; z = Math.sin(a) * r;
   var key = side === 'you' ? 'slammy' : M.rival.slammer;
-  var mesh = makeDisc(key, 0.72, 0.12, side === 'you' ? 0x8a6d00 : 0x333c48);
+  var mesh = makeDisc(key, 0.72, 0.24);
   mesh.position.set(x, 6, z);
   scene.add(mesh);
   slammer = { mesh: mesh, side: side, pow: pow, vy: -(TUNE.DROP_VY + pow * TUNE.DROP_VY_POW), hit: false, life: 0,
@@ -1007,7 +1047,7 @@ function slamImpact(){
     var vx = (dx / dl) * base * 0.55 + rnd(-0.4, 0.4);
     var vz = (dz / dl) * base * 0.55 + rnd(-0.4, 0.4);
     var vy = base * (0.45 + Math.random() * 0.4);
-    _axis.set(rnd(-1,1), rnd(-1,1), rnd(-1,1)).normalize().multiplyScalar(angK * 2.1 + rnd(0, 2.2));
+    _axis.set(rnd(-1,1), rnd(-1,1), rnd(-1,1)).normalize().multiplyScalar(angK * 1.35 + rnd(0, 1.5));
     var ax = _axis.x, ay = _axis.y, az = _axis.z;
     /* shockwave ripple: impulse arrives later the farther out the disc sits */
     pendingImps.push({ delay: d * TUNE.RIPPLE, fn: (function(t2, vx2, vy2, vz2, ax2, ay2, az2){
@@ -1052,8 +1092,8 @@ function stepTazo(t, dt){
       v.y = hit * TUNE.BOUNCE_Y;
       if (hit > 1.4){
         /* clatter: a hard bounce converts fall into tumble + skitter */
-        t.angVel.x += rnd(-1, 1) * hit * 0.5;
-        t.angVel.z += rnd(-1, 1) * hit * 0.5;
+        t.angVel.x += rnd(-1, 1) * hit * 0.38;
+        t.angVel.z += rnd(-1, 1) * hit * 0.38;
         v.x += rnd(-1, 1) * hit * 0.09;
         v.z += rnd(-1, 1) * hit * 0.09;
         sfxTick(0.015 + hit * 0.008);
@@ -1086,7 +1126,11 @@ var _axis = new THREE.Vector3(), _up = new THREE.Vector3();
 var _eul = new THREE.Euler(), _wobQ = new THREE.Quaternion(), _wobAx = new THREE.Vector3();
 function beginSettle(t){
   _up.set(0,1,0).applyQuaternion(t.mesh.quaternion);
-  t.faceUp = _up.y >= 0;   /* the flip rule: local up points down => flipped */
+  /* the flip rule, thick-puck edition: a decisive tilt flips; a lean falls
+     back onto whichever face it was already lying on */
+  if (_up.y < -0.18) t.faceUp = false;
+  else if (_up.y > 0.18) t.faceUp = true;
+  else t.faceUp = (t.faceUp !== false);
   var spin = t.angVel.length();
   _eul.set(t.faceUp ? 0 : Math.PI, Math.atan2(_up.x, _up.z) + rnd(-0.4, 0.4), 0);
   t.settling = {
