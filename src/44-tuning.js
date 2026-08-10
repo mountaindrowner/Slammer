@@ -28,6 +28,7 @@ var TUNE = {
   GRIP_HI: 0.06,       // ...and after it
   GRIP_F: 1.1,         // grip: force bonus
   GRIP_T: 1.15,        // grip: flip-torque bonus
+  PERFECT_WIN: 0.035,  // the sweet spot within the sweet spot (s from peak) -> re-entry burn
   TILT_MAX: 1.1,       // max slammer tilt in radians (~63 deg, edge-leading)
   TILT_SPEED: 9,       // world-units/s of drag speed for full tilt
   EDGE_LANE: 2.2,      // alignment exponent: how narrow the edge strike lane is

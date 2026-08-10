@@ -90,10 +90,14 @@ window.addEventListener('pointerup', function(){
     el('powfill').classList.remove('grip');
     var att = throwAtt || { dx: 0, dz: 1, tilt: 0 };
     att.grip = gripAt(aimT);
+    att.perfect = Math.abs(aimT - TUNE.POW_RISE) <= TUNE.PERFECT_WIN;
     var slop = sloppyAt(aimT);
     att.scatter = TUNE.SCATTER * (att.grip ? 0.3 : 1) + slop * TUNE.SCATTER_SLOPPY;
     var p = powerCurve(aimT);
-    if (att.grip){
+    if (att.perfect){
+      popupAt3D(new THREE.Vector3(aimPos.x, 0.5, aimPos.z), 'WHITE HOT!!', '#ff8a30');
+      sfxGrip();
+    } else if (att.grip){
       popupAt3D(new THREE.Vector3(aimPos.x, 0.5, aimPos.z), 'TOURNAMENT GRIP!', '#f5b93d');
       sfxGrip();
     }

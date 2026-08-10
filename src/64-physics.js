@@ -36,12 +36,13 @@ function doSlam(side, x, z, pow, att){
     shadow: makeShadow(0.72) };
   reticle.visible = false;
   ghost.visible = false;
+  if (att.perfect) sfxReentry();
   mode = 'drop';
   slamClock = 0;
   M.settleLogged = false;
   M.slams++;
   tlog('SLAM ' + side + ' @(' + x.toFixed(1) + ',' + z.toFixed(1) + ') pow=' + pow.toFixed(2) +
-    ' tilt=' + att.tilt.toFixed(2) + (att.grip ? ' GRIP' : ''));
+    ' tilt=' + att.tilt.toFixed(2) + (att.perfect ? ' WHITEHOT' : (att.grip ? ' GRIP' : '')));
 }
 
 var pendingImps = [], simStuckT = 0, stillFrames = 0, slamClock = 0;
@@ -120,6 +121,13 @@ function slamImpact(){
   lampFlare = 1.4 + pow;
   flashImpact(pow);
   shockwave(s.mesh.position.x, s.mesh.position.z, (TUNE.IMP_R_BASE + pow * TUNE.IMP_R_POW) * (s.spec.radius || 1));
+  /* re-entry payoff: the burn detonates into embers on contact */
+  burnFlame.visible = false;
+  if (s.att && s.att.grip){
+    emberBurst(s.mesh.position.x, s.mesh.position.y, s.mesh.position.z,
+      s.att.perfect ? 40 : 14, s.att.perfect ? 7 : 4);
+    if (s.att.perfect){ camShake += 0.18; lampFlare += 0.8; sfxSizzle(); }
+  }
   if (!AUTO){ timeScale = 0.07; tsHold = 0.1; }  /* hitstop */
   slamImpactAt(s.mesh.position.x, s.mesh.position.z, pow, s.side, s.spec, 1, s.att);
   if (s.spec.fx === 'bounce' && !s.hopped){

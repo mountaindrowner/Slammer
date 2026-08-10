@@ -82,6 +82,21 @@ function loop(ts){
     if (!s.hit){
       s.vy -= TUNE.GRAV * dt * 0.6;
       s.mesh.position.y += s.vy * dt;
+      /* the grip burn: a clean release comes down hot; a perfect one
+         burns up in the atmosphere */
+      if (s.att && s.att.grip){
+        s.heat = Math.min(s.att.perfect ? 1 : 0.5, (s.heat || 0) + rdt * 4);
+        setBodyHeat(s, s.heat);
+        spawnEmber(s.mesh.position.x, s.mesh.position.y + 0.1, s.mesh.position.z, 0.28, 2.2);
+        if (s.att.perfect){
+          spawnEmber(s.mesh.position.x, s.mesh.position.y + 0.5, s.mesh.position.z, 0.34, 3);
+          burnFlame.visible = true;
+          burnFlame.position.set(s.mesh.position.x, s.mesh.position.y + 0.95, s.mesh.position.z);
+          burnFlame.rotation.y += rdt * 9;
+          var flk = 1 + rnd(-0.14, 0.14);
+          burnFlame.scale.set(flk, 1 + rnd(-0.18, 0.18), flk);
+        }
+      }
       /* impact on the top of whatever is under the slammer, not the floor */
       var impactY = slamRestY(s);
       if (s.mesh.position.y <= impactY){
@@ -96,6 +111,11 @@ function loop(ts){
      settles like everything else, and only fades once at rest. */
   if (slammer && slammer.hit){
     var sl = slammer;
+    /* heat dies down after contact */
+    if (sl.heat > 0.01){
+      sl.heat *= Math.pow(0.08, rdt);
+      setBodyHeat(sl, sl.heat);
+    }
     if (sl.phase === 'hop'){
       sl.vy -= TUNE.GRAV * dt * 0.8;
       sl.mesh.position.y += sl.vy * dt;
@@ -213,6 +233,8 @@ function loop(ts){
   /* blob shadows track every airborne disc */
   if (M) M.pot.forEach(function(t){ if (t.shadow) syncShadow(t.shadow, t.mesh.position); });
   if (slammer && slammer.shadow) syncShadow(slammer.shadow, slammer.mesh.position);
+
+  updateEmbers(dt);
 
   /* camera: follow the slam, punch on impact, sway for parallax */
   _camV.set(0, 0, -0.2);

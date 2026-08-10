@@ -175,6 +175,7 @@ function aiPick(acc){
 function aiAttitude(r, pick){
   var style = (r && r.throwStyle) || { edge: 0.5, grip: 0.5 };
   var att = { dx: 0, dz: 1, tilt: 0, grip: Math.random() < style.grip, scatter: 0 };
+  att.perfect = att.grip && Math.random() < 0.3;
   if (Math.random() < style.edge){
     /* edge throw: drive from the aim point through the nearest other chip */
     var best = null, bd = 1e9;
