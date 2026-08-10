@@ -40,12 +40,13 @@ function doSlam(side, x, z, pow, att){
   mode = 'drop';
   slamClock = 0;
   M.settleLogged = false;
+  slamStats = { side: side, pow: pow, att: att, caps: 0, boomerang: false, spinFlip: false };
   M.slams++;
   tlog('SLAM ' + side + ' @(' + x.toFixed(1) + ',' + z.toFixed(1) + ') pow=' + pow.toFixed(2) +
     ' tilt=' + att.tilt.toFixed(2) + (att.perfect ? ' WHITEHOT' : (att.grip ? ' GRIP' : '')));
 }
 
-var pendingImps = [], simStuckT = 0, stillFrames = 0, slamClock = 0;
+var pendingImps = [], simStuckT = 0, stillFrames = 0, slamClock = 0, slamStats = null;
 var STILL_N = AUTO ? 5 : 15;   /* settle rule: consecutive still frames before the tally */
 function slamImpactAt(px, pz, pow, side, spec, mult, att){
   simStuckT = 0;
@@ -275,6 +276,7 @@ function beginSettle(t){
   else if (_up.y > 0.12) t.faceUp = true;
   else t.faceUp = (t.faceUp !== false);
   var spin = t.angVel.length();
+  t.settleSpin = spin;
   _eul.set(t.faceUp ? 0 : Math.PI, Math.atan2(_up.x, _up.z) + rnd(-0.4, 0.4), 0);
   t.settling = {
     k: 0,

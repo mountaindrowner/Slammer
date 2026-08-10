@@ -90,20 +90,24 @@ severity (wipe vs protected page).
 - [x] Band re-committed: 0.43 / 0.38 across verification runs; edge and flat trade advantage
       situationally rather than one dominating.
 
-## Step 3 — Callouts  `[ ]`
-*Vision §7 (callout table). Rides entirely on events steps 1–2 emit.*
+## Step 3 — Callouts  `[x]` (v0.10.0)
+*Vision §7 (callout table). Rides on events steps 1–2 emit.*
 
-- [ ] Event detector keyed off the settle event: FLIPZILLA (6+ caps/slam), RAZOR'S EDGE
-      (~90° edge impact → flip), THE GOOGLIE (high-spin → flip), WHAMMIE (final chip),
-      KINI KUNG FU (max power in-band), BOOMERANG (slammer rebounds onto the stack),
-      CLEAN SWEEP, THE THWACK (in-band release + 3 flips).
-- [ ] One callout per slam, highest rarity wins; stamp-in marker type ~1 s; one SFX hit.
-- [ ] Rare callouts carry a Lunch Money kicker line (wired for real in Step 5; log-only now).
-- [ ] Rule enforced in code review: triggers must trace to player-steered inputs (attitude,
-      power, placement) — never pure physics luck.
-- Touches: capture pipeline, a new `CALLOUTS` table, `#fx` layer, tlog.
-- Done when: a good slam gets named, and the names teach technique (AUTO logs which callouts
-  fire and at what rates — RAZOR'S EDGE should correlate with edge attitude, etc.).
+- [x] Detector keyed off the settle event (`evalCallout` in `maybeEndTurn`, after all chains
+      resolve): WHAMMIE, CLEAN SWEEP, THE GOOGLIE (high-spin flip via `settleSpin`),
+      RAZOR'S EDGE (tilt ≥ 0.85 + flip), KINI KUNG FU (grip + pow ≥ 0.96), BOOMERANG
+      (slammer apex > 1.7 rebounding onto the stack), THE THWACK (grip + 3 flips),
+      FLIPZILLA (6+). One per slam, highest rarity wins.
+- [x] Stamp-in presentation: marker type, rotated, `stampin` keyframes ~1.15 s, rank-scaled
+      SFX hit; rival callouts tinted in his color; reduced-motion fallback; turn transition
+      pauses an extra beat when a callout fires.
+- [x] Rank ≥ 5 callouts log a `[style bonus]` marker for Step 5's Lunch Money kicker.
+- Verified: 15 callouts across 95 slams (~16%), rarity shape correct (RAZOR'S EDGE common,
+  BOOMERANG ×1, jackpots absent on small pots), band 0.42, no errors.
+- Also shipped alongside (v0.9.1–0.9.2, feel feedback from phone testing): three-phase throw
+  (tilt → aim → power; the flick gesture failed on touch), and the re-entry burn — grip
+  throws drop hot, perfect releases (PERFECT_WIN) burn up with flame trail, embers, WHITE
+  HOT!! and an ember detonation on impact.
 
 ## Step 4 — Camera + first venue (the driveway)  `[ ]`
 *Vision §9. Prove the venue budget on ONE venue before content scales.*

@@ -115,6 +115,20 @@
     background:rgba(245,185,61,.3);border-left:2px solid var(--pop);pointer-events:none}
   #hint{font-size:11px;opacity:.75;text-align:center;margin-top:5px}
 
+  /* callouts: named technique, stamped across the screen */
+  #callout{position:fixed;left:50%;top:30%;transform:translate(-50%,-50%) rotate(-6deg);
+    font-family:var(--shout);font-size:min(11vw,46px);color:var(--pop);
+    -webkit-text-stroke:2px #000;text-shadow:4px 4px 0 var(--pink),8px 8px 0 #000;
+    opacity:0;pointer-events:none;z-index:26;white-space:nowrap}
+  #callout.show{animation:stampin 1.15s cubic-bezier(.2,1.4,.4,1) forwards}
+  #callout.foe{color:var(--pink);text-shadow:4px 4px 0 #3a1030,8px 8px 0 #000}
+  @keyframes stampin{
+    0%{opacity:0;transform:translate(-50%,-50%) rotate(-14deg) scale(2.6)}
+    12%{opacity:1;transform:translate(-50%,-50%) rotate(-6deg) scale(1)}
+    78%{opacity:1}
+    100%{opacity:0;transform:translate(-50%,-50%) rotate(-5deg) scale(0.95)}}
+  @media (prefers-reduced-motion:reduce){#callout.show{animation:calloutfade 1.15s linear forwards}
+    @keyframes calloutfade{0%{opacity:0}10%{opacity:1}80%{opacity:1}100%{opacity:0}}}
   #banner{position:fixed;left:0;right:0;top:42%;text-align:center;z-index:25;pointer-events:none;
     font-family:var(--shout);font-size:26px;color:var(--pop);text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000;
     opacity:0;transition:opacity .25s}
@@ -191,6 +205,7 @@
   </div>
 </div>
 <div id="banner"></div>
+<div id="callout"></div>
 <div id="fx"></div>
 <div id="flash"></div>
 <div id="grain"></div>
@@ -255,7 +270,7 @@
 /* ================================================================
    SLAMMERS — playing-for-keeps tazo roguelite (proof of concept)
    ================================================================ */
-var VERSION = '0.9.2';
+var VERSION = '0.10.0';
 var AUTO = /[?&]auto=1/.test(location.search);
 
 /* ---------- diagnostics: breadcrumbs, error banner, version ---------- */
@@ -1508,12 +1523,13 @@ function doSlam(side, x, z, pow, att){
   mode = 'drop';
   slamClock = 0;
   M.settleLogged = false;
+  slamStats = { side: side, pow: pow, att: att, caps: 0, boomerang: false, spinFlip: false };
   M.slams++;
   tlog('SLAM ' + side + ' @(' + x.toFixed(1) + ',' + z.toFixed(1) + ') pow=' + pow.toFixed(2) +
     ' tilt=' + att.tilt.toFixed(2) + (att.perfect ? ' WHITEHOT' : (att.grip ? ' GRIP' : '')));
 }
 
-var pendingImps = [], simStuckT = 0, stillFrames = 0, slamClock = 0;
+var pendingImps = [], simStuckT = 0, stillFrames = 0, slamClock = 0, slamStats = null;
 var STILL_N = AUTO ? 5 : 15;   /* settle rule: consecutive still frames before the tally */
 function slamImpactAt(px, pz, pow, side, spec, mult, att){
   simStuckT = 0;
@@ -1743,6 +1759,7 @@ function beginSettle(t){
   else if (_up.y > 0.12) t.faceUp = true;
   else t.faceUp = (t.faceUp !== false);
   var spin = t.angVel.length();
+  t.settleSpin = spin;
   _eul.set(t.faceUp ? 0 : Math.PI, Math.atan2(_up.x, _up.z) + rnd(-0.4, 0.4), 0);
   t.settling = {
     k: 0,
@@ -1921,6 +1938,44 @@ function collideBodies(A, B){
 }
 
 /* ================================================================
+   CALLOUTS — named technique, shouted. Half real 90s playground lore,
+   half ours. One per slam, highest rarity wins, evaluated only once
+   the table is still. Triggers trace to player-steered inputs
+   (attitude, power, placement) — never pure luck.
+   ================================================================ */
+var CALLOUTS = [
+  { key: 'WHAMMIE',      rank: 1, test: function(s, left){ return left === 0 && s.caps >= 1; } },
+  { key: 'CLEAN SWEEP',  rank: 2, test: function(s, left){ return left === 0 && s.caps >= 3; } },
+  { key: 'THE GOOGLIE',  rank: 3, test: function(s){ return s.spinFlip && s.caps >= 1; } },
+  { key: "RAZOR'S EDGE", rank: 4, test: function(s){ return s.att && s.att.tilt >= 0.85 && s.caps >= 1; } },
+  { key: 'KINI KUNG FU', rank: 5, test: function(s){ return s.att && s.att.grip && s.pow >= 0.96; } },
+  { key: 'BOOMERANG',    rank: 6, test: function(s){ return s.boomerang; } },
+  { key: 'THE THWACK',   rank: 7, test: function(s){ return s.att && s.att.grip && s.caps >= 3; } },
+  { key: 'FLIPZILLA',    rank: 8, test: function(s){ return s.caps >= 6; } }
+];
+function evalCallout(){
+  if (!slamStats) return null;
+  var s = slamStats, left = alive().length, best = null;
+  CALLOUTS.forEach(function(c){
+    if (c.test(s, left) && (!best || c.rank > best.rank)) best = c;
+  });
+  slamStats = null;
+  return best;
+}
+function sfxCallout(rank){
+  tone(160 + rank * 30, 0.12, 'square', 0.1, 90);
+  setTimeout(function(){ tone(480 + rank * 90, 0.14, 'square', 0.08, 700 + rank * 120); }, 90);
+}
+function showCallout(c, side){
+  var d = el('callout');
+  d.textContent = c.key;
+  d.className = 'show' + (side === 'rival' ? ' foe' : '');
+  sfxCallout(c.rank);
+  clearTimeout(showCallout._t);
+  showCallout._t = setTimeout(function(){ d.className = ''; }, 1150);
+  tlog('  CALLOUT ' + c.key + (c.rank >= 5 ? ' [style bonus]' : ''));
+}
+/* ================================================================
    CAPTURE PIPELINE — every effect is a data key resolved here
    ================================================================ */
 function isFlipped(t){
@@ -1951,6 +2006,10 @@ function captureTazo(t, side, chainQ){
     return;
   }
   t.captured = side;
+  if (slamStats && side === slamStats.side){
+    slamStats.caps++;
+    if (t.settleSpin > 8) slamStats.spinFlip = true;
+  }
   dropShadow(t);
   /* anything stacked on this chip loses its support and drops */
   M.pot.forEach(function(o){
@@ -2066,13 +2125,16 @@ function maybeEndTurn(){
   if (pendingBooms > 0 || animCount > 0 || pendingImps.length > 0) return;
   if (!allSettled()) return;
   if (M.pot.some(isFlipped)) return;  /* still work to do */
+  /* the table is still — name the technique */
+  var co = evalCallout();
+  if (co) showCallout(co, M.turn);
   turnEnding = true;
   setTimeout(function(){
     if (!M) return;
     if (alive().length === 0){ endMatch(); return; }
     if (M.slams >= M.bellAt){ ringBell(); return; }
     beginTurn(M.turn === 'you' ? 'rival' : 'you');
-  }, AUTO ? 80 : 550);
+  }, AUTO ? 80 : (co ? 1050 : 550));
 }
 
 /* the bell: recess ends, unclaimed pot goes home to its stakers */
@@ -2512,7 +2574,20 @@ function loop(ts){
       }
     } else if (sl.phase === 'sim'){
       if (!sl.settled) stepTazo(sl, dt);
-      if (sl.settled){ sl.phase = 'fade'; sl.fadeT = 0; }
+      sl.apexY = Math.max(sl.apexY || 0, sl.mesh.position.y);
+      if (sl.settled){
+        /* boomerang: rebounded high and came back down on the stack */
+        if (slamStats && sl.apexY > 1.7 && M){
+          var bnd = 1e9;
+          M.pot.forEach(function(t){
+            if (t.captured) return;
+            bnd = Math.min(bnd, hdist(t.mesh.position.x, t.mesh.position.z,
+              sl.mesh.position.x, sl.mesh.position.z));
+          });
+          if (bnd < 1.1) slamStats.boomerang = true;
+        }
+        sl.phase = 'fade'; sl.fadeT = 0;
+      }
     } else if (sl.phase === 'fade'){
       sl.fadeT += rdt;
       var fk = Math.min(1, sl.fadeT / (AUTO ? 0.1 : 0.5));

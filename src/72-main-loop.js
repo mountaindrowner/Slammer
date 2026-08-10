@@ -137,7 +137,20 @@ function loop(ts){
       }
     } else if (sl.phase === 'sim'){
       if (!sl.settled) stepTazo(sl, dt);
-      if (sl.settled){ sl.phase = 'fade'; sl.fadeT = 0; }
+      sl.apexY = Math.max(sl.apexY || 0, sl.mesh.position.y);
+      if (sl.settled){
+        /* boomerang: rebounded high and came back down on the stack */
+        if (slamStats && sl.apexY > 1.7 && M){
+          var bnd = 1e9;
+          M.pot.forEach(function(t){
+            if (t.captured) return;
+            bnd = Math.min(bnd, hdist(t.mesh.position.x, t.mesh.position.z,
+              sl.mesh.position.x, sl.mesh.position.z));
+          });
+          if (bnd < 1.1) slamStats.boomerang = true;
+        }
+        sl.phase = 'fade'; sl.fadeT = 0;
+      }
     } else if (sl.phase === 'fade'){
       sl.fadeT += rdt;
       var fk = Math.min(1, sl.fadeT / (AUTO ? 0.1 : 0.5));

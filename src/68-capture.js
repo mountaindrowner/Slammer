@@ -29,6 +29,10 @@ function captureTazo(t, side, chainQ){
     return;
   }
   t.captured = side;
+  if (slamStats && side === slamStats.side){
+    slamStats.caps++;
+    if (t.settleSpin > 8) slamStats.spinFlip = true;
+  }
   dropShadow(t);
   /* anything stacked on this chip loses its support and drops */
   M.pot.forEach(function(o){
@@ -144,13 +148,16 @@ function maybeEndTurn(){
   if (pendingBooms > 0 || animCount > 0 || pendingImps.length > 0) return;
   if (!allSettled()) return;
   if (M.pot.some(isFlipped)) return;  /* still work to do */
+  /* the table is still — name the technique */
+  var co = evalCallout();
+  if (co) showCallout(co, M.turn);
   turnEnding = true;
   setTimeout(function(){
     if (!M) return;
     if (alive().length === 0){ endMatch(); return; }
     if (M.slams >= M.bellAt){ ringBell(); return; }
     beginTurn(M.turn === 'you' ? 'rival' : 'you');
-  }, AUTO ? 80 : 550);
+  }, AUTO ? 80 : (co ? 1050 : 550));
 }
 
 /* the bell: recess ends, unclaimed pot goes home to its stakers */
