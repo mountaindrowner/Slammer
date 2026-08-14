@@ -43,6 +43,8 @@ var TUNE = {
   RUBBER_SAVE: 0.45,   // chance a flipped rubber tazo re-flips back
   ARENA_R: 3.6,
   TAZO_R: 0.5,
-  TAZO_H: 0.18
+  TAZO_H: 0.18,
+  SLAM_R: 0.5,         // the slammer is tazo-sized — just thicker and heavier
+  SLAM_H: 0.22
 };
 

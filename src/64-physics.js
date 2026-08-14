@@ -21,7 +21,7 @@ function doSlam(side, x, z, pow, att){
   x = Math.cos(a) * r; z = Math.sin(a) * r;
   var key = side === 'you' ? run.slammer : M.rival.slammer;
   var spec = SLAMMERS[key] || SLAMMERS.slammy;
-  var mesh = makeDisc(key, 0.72, 0.24);
+  var mesh = makeDisc(key, TUNE.SLAM_R, TUNE.SLAM_H);
   mesh.position.set(x, 6, z);
   /* attitude: tip the leading edge down toward the drive direction */
   if (att.tilt > 0.02){
@@ -30,10 +30,10 @@ function doSlam(side, x, z, pow, att){
   }
   scene.add(mesh);
   slammer = { mesh: mesh, side: side, pow: pow, spec: spec, att: att,
-    design: DESIGNS[key], bR: 0.72, bH: 0.24, m: 3,
+    design: DESIGNS[key], bR: TUNE.SLAM_R, bH: TUNE.SLAM_H, m: 3,
     vy: -(TUNE.DROP_VY + pow * TUNE.DROP_VY_POW),
     hit: false, hopped: false, hopping: false, phase: 'drop',
-    shadow: makeShadow(0.72) };
+    shadow: makeShadow(TUNE.SLAM_R) };
   reticle.visible = false;
   ghost.visible = false;
   if (att.perfect) sfxReentry();
@@ -102,7 +102,7 @@ function slamImpactAt(px, pz, pow, side, spec, mult, att){
       _cn.set(att.dz, 0, -att.dx);
       _axis.multiplyScalar(1 - tilt * 0.75).addScaledVector(_cn, tilt * 0.75).normalize();
     }
-    _axis.multiplyScalar(angK * 2.6 + rnd(0, 2.6));
+    _axis.multiplyScalar(angK * 2.95 + rnd(0, 2.8));
     var ax = _axis.x, ay = _axis.y, az = _axis.z;
     /* shockwave ripple: impulse arrives later the farther out the disc sits */
     pendingImps.push({ delay: d * TUNE.RIPPLE, fn: (function(t2, vx2, vy2, vz2, ax2, ay2, az2){
@@ -166,11 +166,11 @@ function slamRestY(s){
   M.pot.forEach(function(t){
     if (t.captured) return;
     if (hdist(t.mesh.position.x, t.mesh.position.z, s.mesh.position.x, s.mesh.position.z)
-        < 0.72 + TUNE.TAZO_R * 0.9){
+        < TUNE.SLAM_R + TUNE.TAZO_R * 0.9){
       top = Math.max(top, t.mesh.position.y + TUNE.TAZO_H / 2);
     }
   });
-  return Math.max(0.13, top + 0.13);
+  return Math.max(TUNE.SLAM_H / 2 + 0.02, top + TUNE.SLAM_H / 2 + 0.02);
 }
 
 /* support height: the lowest point of a tilted disc is on its rim,

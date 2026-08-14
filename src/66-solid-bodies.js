@@ -39,7 +39,7 @@ function collidePass(){
     /* while live in the sim the slammer is a heavy mobile body;
        during drop/hop it's a solid obstacle chips bounce off */
     var slMobile = slammer.phase === 'sim' && slammer.vel && !slammer.settled;
-    bodies.push({ holder: slammer, mesh: slammer.mesh, R: 0.72, h: 0.12, m: 3,
+    bodies.push({ holder: slammer, mesh: slammer.mesh, R: TUNE.SLAM_R, h: TUNE.SLAM_H / 2, m: 3,
       chip: slMobile ? slammer : null });
   }
   bodies.forEach(computeBeads);

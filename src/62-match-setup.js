@@ -102,11 +102,15 @@ function chooseCall(call){
 function flipCoin(){
   if (!M) return;
   var mesh = makeDisc('coin', TUNE.TAZO_R, TUNE.TAZO_H);
-  mesh.position.set(1.7, 4.2, 1.1);
+  mesh.position.set(1.5, 0.55, 1.0);
   scene.add(mesh);
+  /* a true toss: flicked UP off the thumb, spinning end-over-end about
+     one horizontal axis — readable flips, a hang at the apex, then the
+     bounce-and-wobble the settle physics already knows how to do */
+  var a = rnd(0, Math.PI * 2);
   coin = { key:'coin', design: DESIGNS.coin, mesh: mesh,
-    vel: new THREE.Vector3(rnd(-0.5, 0.5), 1.5, rnd(-0.5, 0.5)),
-    angVel: new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize().multiplyScalar(rnd(9, 14)),
+    vel: new THREE.Vector3(rnd(-0.35, 0.35), 8.8, rnd(-0.35, 0.35)),
+    angVel: new THREE.Vector3(Math.cos(a), 0.12, Math.sin(a)).normalize().multiplyScalar(rnd(17, 23)),
     bR: TUNE.TAZO_R, bH: TUNE.TAZO_H,
     settled: false, settling: null, disturbed: true, captured: null,
     shadow: makeShadow(TUNE.TAZO_R) };

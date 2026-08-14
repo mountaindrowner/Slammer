@@ -83,7 +83,7 @@ reticle.rotation.x = -Math.PI/2; reticle.position.y = 0.03; reticle.visible = fa
 scene.add(reticle);
 /* attitude ghost: previews the slammer's tilt above the reticle during aim */
 var ghost = new THREE.Mesh(
-  new THREE.CylinderGeometry(0.72, 0.72, 0.07, 20),
+  new THREE.CylinderGeometry(0.5, 0.5, 0.07, 20),
   new THREE.MeshBasicMaterial({ color: 0xf5b93d, transparent: true, opacity: 0.3, depthWrite: false }));
 ghost.visible = false;
 scene.add(ghost);
