@@ -249,6 +249,17 @@ function loop(ts){
 
   updateEmbers(dt);
 
+  /* finishes: HOLO sheen moves with time and tumble; STATIC snow crawls */
+  if (M){
+    var hueT = ts * 0.00025;
+    M.pot.forEach(function(t){
+      if (t.captured || t.finish !== 'holo') return;
+      _sn.set(0, 1, 0).applyQuaternion(t.mesh.quaternion);
+      t.mesh.material[1].emissive.setHSL((hueT + _sn.x * 0.25 + _sn.z * 0.15 + 1) % 1, 0.75, 0.15);
+    });
+    if (frameN % 3 === 0) staticTex.offset.set(Math.random(), Math.random());
+  }
+
   /* camera: frame the live cluster, drift to the aim, follow the slam */
   var cfit = clusterFit();
   _camV.set(cfit.x, 0, cfit.z);
@@ -313,6 +324,11 @@ nextFrame(loop);
 el('courtprev').textContent = NODES.map(function(n){
   return n.t === 'store' ? 'CORNER STORE' : RIVALS[n.r].turf;
 }).join(' → ');
+/* knob-system harness: ?knobtest=1 forces the first node hot */
+if (/[?&]knobtest=1/.test(location.search)){
+  NODES[0].field = 'tilt';
+  NODES[0].wincon = 'bounty';
+}
 mark('clean');
 tlog('BOOT ok v' + VERSION);
 if (AUTO){

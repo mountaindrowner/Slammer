@@ -28,6 +28,32 @@ var RIVALS = [
 
 var START_BINDER = ['smiley','pizza','alien','star','skull','cat','hypno','rubber','whoopee','feather'];
 
+/* ---- Starter Stacks: the binder page you walk out the door with ---- */
+var STACKS = {
+  sandlot: { name: 'SANDLOT', unlocked: true,
+    desc: 'the honest page. a little of everything.',
+    binder: START_BINDER, pouch: ['slammy', 'bouncer'] },
+  heavy: { name: 'CURBSIDE', unlock: 'Win a run',
+    desc: 'manholes and muscle. nothing moves unless you move it.',
+    binder: ['manhole','manhole','skull','star','gum','smiley','duck','pizza'],
+    pouch: ['slammy', 'metal'] },
+  chaos: { name: 'FIRECRACKER', unlock: 'Own 5 rares in one Binder',
+    desc: 'whoopees and bad ideas. light the fuse.',
+    binder: ['whoopee','whoopee','rubber','vhs','feather','cat','alien','hypno'],
+    pouch: ['slammy', 'drill'] }
+};
+function stackUnlocked(key){
+  if (STACKS[key].unlocked) return true;
+  try{ return !!JSON.parse(localStorage.getItem('slam_unlocks') || '{}')[key]; }catch(e){ return false; }
+}
+function unlockStack(key){
+  try{
+    var u = JSON.parse(localStorage.getItem('slam_unlocks') || '{}');
+    if (!u[key]){ u[key] = true; localStorage.setItem('slam_unlocks', JSON.stringify(u)); return true; }
+  }catch(e){}
+  return false;
+}
+
 /* ---- slammers: the tools. Chips are what you wager; slammers are how you hit. ---- */
 var SLAMMERS = {
   slammy:  { name:'SLAMMY',    desc:'the trusty one',                 radius:1,   imp:1,    ang:1 },

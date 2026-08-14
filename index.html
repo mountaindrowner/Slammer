@@ -56,6 +56,8 @@
     justify-content:center;gap:14px;padding:18px;background:radial-gradient(circle at 50% 30%,#1b1230 0%,var(--ink) 70%);
     overflow-y:auto}
   .screen.show{display:flex}
+  /* the menu sits over the live diorama */
+  #title{background:radial-gradient(circle at 50% 30%,rgba(27,18,48,0.55) 0%,rgba(11,8,18,0.72) 70%)}
   .title-logo{font-family:var(--shout);font-size:min(17vw,72px);line-height:.95;text-align:center;
     color:var(--pop);text-shadow:4px 4px 0 var(--pink),8px 8px 0 #000}
   .subtitle{color:var(--cyan);font-size:14px;text-align:center;max-width:300px}
@@ -115,6 +117,32 @@
     background:rgba(245,185,61,.3);border-left:2px solid var(--pop);pointer-events:none}
   #hint{font-size:11px;opacity:.75;text-align:center;margin-top:5px}
 
+  /* store v2: bags, sold cards, finishes */
+  .tz.soldout{opacity:.35;pointer-events:none}
+  .bagart{width:52px;height:64px;border-radius:8px 8px 12px 12px;border:2px solid #000;
+    background:linear-gradient(135deg,var(--tint) 0%,#171221 55%,var(--tint) 100%);
+    background-size:200% 200%;animation:foilshift 2.2s linear infinite}
+  .bagart.big{width:120px;height:150px;animation:foilshift 1.1s linear infinite, bagshake .5s ease-in-out 2}
+  @keyframes foilshift{0%{background-position:0% 0%}100%{background-position:200% 200%}}
+  @keyframes bagshake{0%,100%{transform:rotate(0)}25%{transform:rotate(-7deg)}75%{transform:rotate(7deg)}}
+  #bagreveal{position:fixed;inset:0;z-index:60;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:16px;background:rgba(5,3,10,.82)}
+  #bagreveal.show{display:flex}
+  .bagrow{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;max-width:340px}
+  .tz.reveal{animation:revealpop .5s cubic-bezier(.2,1.5,.4,1)}
+  .tz.reveal.rare{box-shadow:0 0 18px rgba(127,217,192,.7),3px 3px 0 #000}
+  .tz.reveal.legendary{box-shadow:0 0 26px rgba(245,185,61,.9),3px 3px 0 #000}
+  @keyframes revealpop{0%{transform:scale(.2) rotate(12deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+  .fnsh{font-size:8px;font-family:var(--shout);color:#000;background:linear-gradient(90deg,#ff5f8f,#ffd23f,#7fd9c0,#8f7bff);
+    border-radius:6px;padding:1px 5px;margin-top:2px}
+  .tz .wear{font-size:8px;color:#c9a06a;font-family:var(--shout)}
+  /* the receipt: lines tick in one by one */
+  #receipt{font-family:var(--mono,monospace);font-size:12px;margin-top:6px}
+  #receipt .rline{display:flex;justify-content:space-between;padding:2px 4px;opacity:0;
+    animation:rlinein .25s forwards}
+  #receipt .rline.total{border-top:1px dashed #4a4058;margin-top:4px;padding-top:5px;
+    color:var(--pop);font-weight:bold}
+  @keyframes rlinein{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
   /* callouts: named technique, stamped across the screen */
   #callout{position:fixed;left:50%;top:30%;transform:translate(-50%,-50%) rotate(-6deg);
     font-family:var(--shout);font-size:min(11vw,46px);color:var(--pop);
@@ -158,6 +186,7 @@
   <div class="title-logo">SLAM<br>MERS</div>
   <div class="subtitle">playing for keeps.<br>flip 'em, keep 'em, clean out the neighborhood.</div>
   <button id="startbtn">SLAM IT</button>
+  <button class="ghost" id="collbtn">COLLECTION</button>
   <div class="courtline" id="courtprev"></div>
 </div>
 
@@ -214,6 +243,8 @@
 <!-- COURT MAP -->
 <div class="screen" id="map">
   <h2 style="font-size:26px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">THE NEIGHBORHOOD</h2>
+  <div class="shout" id="mapmoney" style="font-size:13px;color:var(--pop)"></div>
+  <div class="say" id="maprumor" style="font-size:11px;color:var(--cyan)"></div>
   <div id="mapnodes" style="display:flex;flex-direction:column;gap:10px;max-width:340px;width:100%"></div>
   <button id="gobtn">GO</button>
 </div>
@@ -222,15 +253,30 @@
 <div class="screen" id="store">
   <div class="card demand">
     <div class="who shout">THE CORNER STORE</div>
-    <div class="say">"trades only. no refunds. don't touch the candy."</div>
+    <div class="say">"cash only. no refunds. don't touch the candy."</div>
   </div>
-  <div id="offers" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:340px"></div>
-  <div class="shout" id="payline" style="font-size:11px;color:var(--cyan);min-height:14px"></div>
-  <div class="binder-grid" id="storegrid"></div>
+  <div class="shout" id="payline" style="font-size:11px;color:var(--cyan);min-height:14px;text-align:center;max-width:340px"></div>
+  <div id="offers" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:352px"></div>
   <div class="ante-btns">
     <button class="ghost" id="leavebtn">LEAVE</button>
-    <button id="tradebtn" disabled>TRADE</button>
+    <button id="sellbtn">SELL INSTEAD</button>
   </div>
+</div>
+<div id="bagreveal"></div>
+
+<!-- STARTER STACKS -->
+<div class="screen" id="stacks">
+  <h2 style="font-size:24px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">PICK YOUR STACK</h2>
+  <div id="stacklist" style="display:flex;flex-direction:column;gap:12px;max-width:340px;width:100%"></div>
+  <button class="ghost" id="stacksback">BACK</button>
+</div>
+
+<!-- COLLECTION -->
+<div class="screen" id="collection">
+  <h2 style="font-size:24px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">THE COLLECTION</h2>
+  <div class="subtitle" id="collsub"></div>
+  <div class="binder-grid" id="collgrid" style="max-height:56vh"></div>
+  <button class="ghost" id="collback">BACK</button>
 </div>
 
 <!-- COIN CALL -->
@@ -254,6 +300,10 @@
     <div class="shout" style="font-size:11px;color:var(--pink)" id="losthead"></div>
     <div class="resultlist" id="lostlist" style="margin-top:8px"></div>
   </div>
+  <div class="card" style="max-width:340px;width:100%" id="receiptcard">
+    <div class="shout" style="font-size:11px;color:var(--pop);text-align:center">THE RECEIPT</div>
+    <div id="receipt"></div>
+  </div>
   <button id="resbtn">CONTINUE</button>
 </div>
 
@@ -270,7 +320,7 @@
 /* ================================================================
    SLAMMERS — playing-for-keeps tazo roguelite (proof of concept)
    ================================================================ */
-var VERSION = '0.11.0';
+var VERSION = '0.12.0';
 var AUTO = /[?&]auto=1/.test(location.search);
 
 /* ---------- diagnostics: breadcrumbs, error banner, version ---------- */
@@ -542,6 +592,32 @@ var RIVALS = [
 
 var START_BINDER = ['smiley','pizza','alien','star','skull','cat','hypno','rubber','whoopee','feather'];
 
+/* ---- Starter Stacks: the binder page you walk out the door with ---- */
+var STACKS = {
+  sandlot: { name: 'SANDLOT', unlocked: true,
+    desc: 'the honest page. a little of everything.',
+    binder: START_BINDER, pouch: ['slammy', 'bouncer'] },
+  heavy: { name: 'CURBSIDE', unlock: 'Win a run',
+    desc: 'manholes and muscle. nothing moves unless you move it.',
+    binder: ['manhole','manhole','skull','star','gum','smiley','duck','pizza'],
+    pouch: ['slammy', 'metal'] },
+  chaos: { name: 'FIRECRACKER', unlock: 'Own 5 rares in one Binder',
+    desc: 'whoopees and bad ideas. light the fuse.',
+    binder: ['whoopee','whoopee','rubber','vhs','feather','cat','alien','hypno'],
+    pouch: ['slammy', 'drill'] }
+};
+function stackUnlocked(key){
+  if (STACKS[key].unlocked) return true;
+  try{ return !!JSON.parse(localStorage.getItem('slam_unlocks') || '{}')[key]; }catch(e){ return false; }
+}
+function unlockStack(key){
+  try{
+    var u = JSON.parse(localStorage.getItem('slam_unlocks') || '{}');
+    if (!u[key]){ u[key] = true; localStorage.setItem('slam_unlocks', JSON.stringify(u)); return true; }
+  }catch(e){}
+  return false;
+}
+
 /* ---- slammers: the tools. Chips are what you wager; slammers are how you hit. ---- */
 var SLAMMERS = {
   slammy:  { name:'SLAMMY',    desc:'the trusty one',                 radius:1,   imp:1,    ang:1 },
@@ -597,6 +673,7 @@ function sfxTick(v){
 }
 function sfxFlip(){ tone(520, 0.09, 'square', 0.06, 900); }
 function sfxGrip(){ tone(660, 0.07, 'square', 0.07, 990); setTimeout(function(){ tone(990, 0.12, 'square', 0.08, 1320); }, 70); }
+function sfxCash(){ tone(1180, 0.05, 'square', 0.05, 1600); setTimeout(function(){ tone(1570, 0.07, 'square', 0.05); }, 55); }
 function sfxBoing(){ tone(220, 0.25, 'sine', 0.1, 660); }
 function sfxBoom(){ tone(90, 0.4, 'sawtooth', 0.14, 30); }
 function sfxWin(){ tone(523,0.12,'square',0.07); setTimeout(function(){tone(659,0.12,'square',0.07);},120); setTimeout(function(){tone(784,0.2,'square',0.08);},240); }
@@ -1038,6 +1115,36 @@ function makeBust(r){
   return g;
 }
 
+
+/* ---------- finishes (vision §8): STATIC + HOLO support ---------- */
+var staticTex = (function(){
+  var cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  var c = cv.getContext('2d');
+  var img = c.createImageData(64, 64);
+  for (var i = 0; i < img.data.length; i += 4){
+    var v = 40 + Math.random() * 190;
+    img.data[i] = img.data[i+1] = img.data[i+2] = v;
+    img.data[i+3] = 255;
+  }
+  c.putImageData(img, 0, 0);
+  var t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.minFilter = THREE.NearestFilter; t.magFilter = THREE.NearestFilter;
+  t.generateMipmaps = false;
+  return t;
+})();
+/* the face is snow until the chip comes to rest — ties into the settle rule */
+function staticize(t){
+  if (!t.realMap) t.realMap = t.mesh.material[1].map;
+  t.mesh.material[1].map = staticTex;
+  t.mesh.material[1].needsUpdate = true;
+}
+function destaticize(t){
+  if (t.realMap && t.mesh.material[1].map !== t.realMap){
+    t.mesh.material[1].map = t.realMap;
+    t.mesh.material[1].needsUpdate = true;
+  }
+}
 /* ================================================================
    VENUE — THE DRIVEWAY (the first venue, built to the corner-store
    standard). Surface: the chalk court on the asphalt. Midground:
@@ -1181,17 +1288,16 @@ var aimPos = { x: 0, z: 0 }, aimT = 0, power = 0;
 var rivalPlan = null;
 var bannerTimer = null, barkTimer = null;
 
-function newRun(){
+function newRun(stackKey){
+  var stack = STACKS[stackKey || 'sandlot'];
   run = {
-    binder: START_BINDER.map(function(k){ return { key: k, prov: null }; }),
+    stackKey: stackKey || 'sandlot',
+    binder: stack.binder.map(function(k){ return { key: k, prov: null, finish: null, wear: 0 }; }),
     stage: 0,
-    pouch: ['slammy', 'bouncer'],
-    slammer: 'slammy',
-    storeStock: [
-      { type:'slammer', key:'drill', cost:2, sold:false },
-      { type:'chip', key:'gum', cost:1, sold:false },
-      { type:'chip', key:'manhole', cost:1, sold:false }
-    ],
+    money: 0,                    /* Lunch Money — the earned build budget */
+    pouch: stack.pouch.slice(),
+    slammer: stack.pouch[0],
+    rumorKnown: false,
     rivals: RIVALS.map(function(r){
       var c = {}; for (var k in r) c[k] = r[k];
       c.binder = r.binder.slice();
@@ -1200,10 +1306,19 @@ function newRun(){
   };
 }
 function curRival(){ return run.rivals[NODES[run.stage].r]; }
+/* every chip that enters the Binder is recorded in the all-time Collection */
+function binderAdd(entry){
+  run.binder.push(entry);
+  try{
+    var coll = JSON.parse(localStorage.getItem('slam_coll') || '{}');
+    coll[entry.key] = (coll[entry.key] || 0) + 1;
+    localStorage.setItem('slam_coll', JSON.stringify(coll));
+  }catch(e){}
+}
 
 /* ---------- screens ---------- */
 function showScreen(id){
-  ['title','ante','result','runend','map','store'].forEach(function(s){
+  ['title','stacks','collection','ante','result','runend','map','store'].forEach(function(s){
     el(s).classList.toggle('show', s === id);
   });
   el('hud').classList.toggle('show', id === null);
@@ -1221,94 +1336,237 @@ function showMap(){
     d.innerHTML = '<span>' + label + '</span><span class="st">' + st + '</span>';
     wrap.appendChild(d);
   });
+  el('mapmoney').textContent = 'LUNCH MONEY: $' + run.money;
+  var boss = curNodeRival();
+  el('maprumor').textContent = run.rumorKnown && boss && boss.rule
+    ? 'rumor: ' + boss.name + ' plays ' + boss.ruleName : '';
   showScreen('map');
   mark('map');
   if (AUTO) setTimeout(function(){ el('gobtn').click(); }, 150);
 }
+function curNodeRival(){
+  for (var i = run.stage; i < NODES.length; i++){
+    if (NODES[i].t === 'match') return run.rivals[NODES[i].r];
+  }
+  return null;
+}
 
-/* ---------- corner store ---------- */
-var storeSel = { offer: -1, pay: [] };
+/* ================================================================
+   CORNER STORE v2 — Lunch Money economy (vision §4).
+   Singles wall · Blind Bags (the ritual) · Trade Counter · Rumors.
+   ================================================================ */
+var CHIP_PRICE = { 1: 3, 2: 5, 3: 8 };
+var SELL_PRICE = { 1: 1, 2: 2, 3: 4 };
+var BAGS = {
+  chum:  { name: 'CHUM BAG',  cost: 4, desc: '3 commons — ante fodder', tint: '#6d7b8d' },
+  weird: { name: 'WEIRD BAG', cost: 5, desc: '2 rares from the effect pool', tint: '#b14aed' },
+  heavy: { name: 'HEAVY BAG', cost: 5, desc: '2 weight & field chips', tint: '#e0863d' },
+  foil:  { name: 'FOIL BAG',  cost: 6, desc: '1 chip · big odds · HOLO inside', tint: '#7fd9c0' }
+};
+var POOL_COMMON = ['smiley','pizza','alien','star','skull','cat','hypno','duck'];
+var POOL_EFFECT = ['rubber','double','whoopee','vhs'];
+var POOL_PHYS = ['feather','manhole','magnet','gum'];
+function chipPool(){ return POOL_COMMON.concat(POOL_EFFECT, POOL_PHYS); }
+function rollSingle(){
+  var r = Math.random();
+  if (r < 0.06) return 'mecha';
+  if (r < 0.45) return (r < 0.25 ? POOL_EFFECT : POOL_PHYS)[Math.floor(rnd(0, 4))];
+  return POOL_COMMON[Math.floor(rnd(0, POOL_COMMON.length))];
+}
+function genStore(){
+  var singles = [
+    { type: 'chip', key: rollSingle() },
+    { type: 'chip', key: rollSingle() }
+  ];
+  var slams = Object.keys(SLAMMERS).filter(function(k){ return run.pouch.indexOf(k) < 0; });
+  if (slams.length) singles.push({ type: 'slammer', key: slams[Math.floor(rnd(0, slams.length))] });
+  singles.forEach(function(o){
+    o.price = o.type === 'slammer' ? 7 : CHIP_PRICE[rank(o.key)];
+    o.sold = false;
+  });
+  return {
+    singles: singles,
+    bagsSold: {},
+    collecting: chipPool()[Math.floor(rnd(0, chipPool().length))],
+    rumorSold: false
+  };
+}
+var storeMode = 'buy';
 function openStore(){
-  storeSel = { offer: -1, pay: [] };
-  renderOffers();
-  el('payline').textContent = 'tap something to trade for';
-  el('storegrid').innerHTML = '';
-  el('tradebtn').disabled = true;
+  if (!run.store || run.storeStage !== run.stage){
+    run.store = genStore();
+    run.storeStage = run.stage;
+    /* piggy bank: saving is a strategy */
+    var piggy = Math.min(5, Math.floor(run.money / 5));
+    if (piggy > 0){
+      run.money += piggy;
+      tlog('MONEY piggy +' + piggy + ' -> ' + run.money);
+      run.store.piggy = piggy;
+    }
+  }
+  storeMode = 'buy';
+  renderStore();
   showScreen('store');
   mark('store');
   if (AUTO){
     setTimeout(function(){
-      for (var oi = 0; oi < run.storeStock.length; oi++){
-        var o = run.storeStock[oi];
-        if (o.sold || run.binder.length < o.cost + 3) continue;
-        pickOffer(oi);
-        var order = run.binder.map(function(e, i){ return i; })
-          .sort(function(a, b){ return rank(run.binder[a].key) - rank(run.binder[b].key); });
-        for (var k = 0; k < o.cost; k++) togglePay(order[k]);
-        el('tradebtn').click();
-        break;
+      var bags = ['foil', 'weird', 'heavy', 'chum'];
+      for (var bi = 0; bi < bags.length; bi++){
+        if (!run.store.bagsSold[bags[bi]] && run.money >= BAGS[bags[bi]].cost){
+          buyBag(bags[bi]); break;
+        }
       }
-      setTimeout(function(){ el('leavebtn').click(); }, 300);
-    }, 150);
+      setTimeout(function(){
+        var s = run.store.singles[0];
+        if (s && !s.sold && run.money >= s.price) buySingle(0);
+        setTimeout(function(){ el('leavebtn').click(); }, 250);
+      }, AUTO ? 400 : 2000);
+    }, 250);
   }
 }
-function renderOffers(){
+function storeMoneyLine(){
+  return 'LUNCH MONEY: $' + run.money +
+    (run.store.piggy ? ' (piggy bank paid +$' + run.store.piggy + ')' : '') +
+    ' · he\'s collecting ' + DESIGNS[run.store.collecting].name + ' this week (+$2)';
+}
+function renderStore(){
+  el('payline').textContent = storeMoneyLine();
   var w = el('offers'); w.innerHTML = '';
-  run.storeStock.forEach(function(o, i){
-    if (o.sold) return;
-    if (o.type === 'slammer' && run.pouch.indexOf(o.key) >= 0){ o.sold = true; return; }
-    var d = DESIGNS[o.key];
-    var card = document.createElement('div');
-    card.className = 'tz' + (i === storeSel.offer ? ' staked' : '');
-    card.innerHTML = '<img src="' + designURL(o.key) + '"><div class="nm">' + d.name +
-      '</div><div class="fx">' + (o.type === 'slammer' ? 'slammer — ' + SLAMMERS[o.key].desc : d.fxdesc) +
-      '</div><div class="fx" style="color:var(--pop)">costs ' + o.cost + ' tazo' + (o.cost > 1 ? 's' : '') + '</div>';
-    card.addEventListener('click', function(){ pickOffer(i); });
-    w.appendChild(card);
-  });
-  if (!w.children.length) w.innerHTML = '<div class="say" style="opacity:.6">sold out. quit loitering.</div>';
+  if (storeMode === 'buy'){
+    run.store.singles.forEach(function(o, i){
+      var d = DESIGNS[o.key];
+      var card = document.createElement('div');
+      card.className = 'tz ' + d.rarity + (o.sold ? ' soldout' : '');
+      card.innerHTML = '<img src="' + designURL(o.key) + '"><div class="nm">' + d.name +
+        '</div><div class="fx">' + (o.type === 'slammer' ? 'slammer — ' + SLAMMERS[o.key].desc : d.fxdesc) +
+        '</div><div class="fx" style="color:var(--pop)">' + (o.sold ? 'SOLD' : '$' + o.price) + '</div>';
+      if (!o.sold) card.addEventListener('click', function(){ buySingle(i); });
+      w.appendChild(card);
+    });
+    Object.keys(BAGS).forEach(function(bk){
+      var b = BAGS[bk], sold = run.store.bagsSold[bk];
+      var card = document.createElement('div');
+      card.className = 'tz bag' + (sold ? ' soldout' : '');
+      card.innerHTML = '<div class="bagart" style="--tint:' + b.tint + '"></div><div class="nm">' + b.name +
+        '</div><div class="fx">' + b.desc + '</div>' +
+        '<div class="fx" style="color:var(--pop)">' + (sold ? 'SOLD' : '$' + b.cost) + '</div>';
+      if (!sold) card.addEventListener('click', function(){ buyBag(bk); });
+      w.appendChild(card);
+    });
+    if (!run.store.rumorSold){
+      var rc = document.createElement('div');
+      rc.className = 'tz';
+      rc.innerHTML = '<div class="bagart" style="--tint:#4a4058"></div><div class="nm">RUMORS</div>' +
+        '<div class="fx">what\'s the next boss playing?</div><div class="fx" style="color:var(--pop)">$1</div>';
+      rc.addEventListener('click', buyRumor);
+      w.appendChild(rc);
+    }
+  } else {
+    /* the trade counter: sell from the Binder */
+    run.binder.forEach(function(entry, i){
+      var d = DESIGNS[entry.key];
+      var price = SELL_PRICE[rank(entry.key)] + (entry.key === run.store.collecting ? 2 : 0);
+      var card = document.createElement('div');
+      card.className = 'tz ' + d.rarity;
+      card.innerHTML = '<img src="' + designURL(entry.key) + '"><div class="nm">' + d.name +
+        '</div><div class="fx" style="color:var(--mint,#7fd9c0)">sells for $' + price + '</div>';
+      card.addEventListener('click', function(){ sellChip(i); });
+      w.appendChild(card);
+    });
+    if (!w.children.length) w.innerHTML = '<div class="say" style="opacity:.6">an empty binder. tragic.</div>';
+  }
+  el('sellbtn').textContent = storeMode === 'buy' ? 'SELL INSTEAD' : 'BACK TO BUYING';
 }
-function pickOffer(i){
-  storeSel.offer = i; storeSel.pay = [];
-  var o = run.storeStock[i];
-  el('payline').textContent = 'hand over ' + o.cost + ' — tap your tazos';
-  renderOffers();
-  buildStoreGrid();
-  el('tradebtn').disabled = true;
-}
-function buildStoreGrid(){
-  var g = el('storegrid'); g.innerHTML = '';
-  run.binder.forEach(function(entry, i){
-    var d = DESIGNS[entry.key];
-    var card = document.createElement('div');
-    card.className = 'tz ' + d.rarity + (storeSel.pay.indexOf(i) >= 0 ? ' staked' : '');
-    card.innerHTML = '<img src="' + designURL(entry.key) + '"><div class="nm">' + d.name + '</div>';
-    card.addEventListener('click', function(){ togglePay(i); });
-    g.appendChild(card);
-  });
-}
-function togglePay(i){
-  if (storeSel.offer < 0) return;
-  var o = run.storeStock[storeSel.offer];
-  var at = storeSel.pay.indexOf(i);
-  if (at >= 0) storeSel.pay.splice(at, 1);
-  else { if (storeSel.pay.length >= o.cost) return; storeSel.pay.push(i); }
-  buildStoreGrid();
-  el('tradebtn').disabled = storeSel.pay.length !== o.cost;
-}
-function doTrade(){
-  var o = run.storeStock[storeSel.offer];
-  storeSel.pay.slice().sort(function(a, b){ return b - a; })
-    .forEach(function(i){ run.binder.splice(i, 1); });
+function buySingle(i){
+  var o = run.store.singles[i];
+  if (o.sold || run.money < o.price) return;
+  run.money -= o.price;
   o.sold = true;
-  if (o.type === 'slammer') run.pouch.push(o.key);
-  else run.binder.push({ key: o.key, prov: 'THE CORNER STORE' });
-  tlog('TRADE bought ' + o.key + ' for ' + o.cost);
-  storeSel = { offer: -1, pay: [] };
-  el('payline').textContent = 'pleasure doing business.';
-  el('storegrid').innerHTML = '';
-  el('tradebtn').disabled = true;
-  renderOffers();
+  if (o.type === 'slammer'){ run.pouch.push(o.key); }
+  else binderAdd({ key: o.key, prov: 'THE CORNER STORE', finish: null, wear: 0 });
+  sfxCash();
+  tlog('STORE bought ' + o.key + ' $' + o.price + ' -> $' + run.money);
+  renderStore();
+}
+function sellChip(i){
+  var entry = run.binder[i];
+  var price = SELL_PRICE[rank(entry.key)] + (entry.key === run.store.collecting ? 2 : 0);
+  run.binder.splice(i, 1);
+  run.money += price;
+  sfxCash();
+  tlog('STORE sold ' + entry.key + ' +$' + price + ' -> $' + run.money);
+  renderStore();
+}
+function buyRumor(){
+  if (run.store.rumorSold || run.money < 1) return;
+  run.money -= 1;
+  run.store.rumorSold = true;
+  run.rumorKnown = true;
+  var boss = curNodeRival();
+  banner(boss && boss.rule ? boss.name + ' PLAYS ' + boss.ruleName : 'no rule. just rich.', 1600);
+  tlog('STORE rumor -> $' + run.money);
+  renderStore();
+}
+/* ---------- Blind Bags: the ritual ---------- */
+function rollBag(type){
+  var pulls = [];
+  function fin(p){ return p; }
+  if (type === 'chum'){
+    for (var i = 0; i < 3; i++) pulls.push({ key: POOL_COMMON[Math.floor(rnd(0, POOL_COMMON.length))], finish: null });
+  } else if (type === 'weird'){
+    for (var j = 0; j < 2; j++) pulls.push({ key: POOL_EFFECT[Math.floor(rnd(0, 4))], finish: Math.random() < 0.2 ? 'static' : null });
+  } else if (type === 'heavy'){
+    for (var k = 0; k < 2; k++) pulls.push({ key: POOL_PHYS[Math.floor(rnd(0, 4))], finish: Math.random() < 0.2 ? 'static' : null });
+  } else {
+    pulls.push({ key: Math.random() < 0.3 ? 'mecha' : POOL_EFFECT.concat(POOL_PHYS)[Math.floor(rnd(0, 8))], finish: 'holo' });
+  }
+  return pulls;
+}
+function buyBag(type){
+  var b = BAGS[type];
+  if (run.store.bagsSold[type] || run.money < b.cost) return;
+  run.money -= b.cost;
+  run.store.bagsSold[type] = true;
+  var pulls = rollBag(type);
+  pulls.forEach(function(p){
+    binderAdd({ key: p.key, prov: 'BLIND BAG', finish: p.finish, wear: 0 });
+    tlog('BAG ' + type + ' -> ' + p.key + (p.finish ? ' [' + p.finish.toUpperCase() + ']' : ''));
+  });
+  revealBag(b, pulls);
+}
+function revealBag(b, pulls){
+  var ov = el('bagreveal');
+  ov.innerHTML = '<div class="bagart big" style="--tint:' + b.tint + '"></div>';
+  ov.classList.add('show');
+  sfxCash();
+  var t0 = AUTO ? 60 : 950;
+  setTimeout(function(){
+    ov.innerHTML = '';
+    var row = document.createElement('div');
+    row.className = 'bagrow';
+    ov.appendChild(row);
+    pulls.forEach(function(p, i){
+      setTimeout(function(){
+        var d = DESIGNS[p.key];
+        var card = document.createElement('div');
+        card.className = 'tz reveal ' + d.rarity;
+        card.innerHTML = '<img src="' + designURL(p.key) + '"><div class="nm">' + d.name + '</div>' +
+          (p.finish ? '<div class="fnsh">' + p.finish.toUpperCase() + '</div>' : '');
+        row.appendChild(card);
+        tone(400 + rank(p.key) * 260, 0.12, 'square', 0.07, 900);
+      }, i * (AUTO ? 40 : 620));
+    });
+    setTimeout(function(){
+      var ok = document.createElement('button');
+      ok.textContent = "TAKE 'EM";
+      ok.addEventListener('click', function(){
+        ov.classList.remove('show');
+        renderStore();
+      });
+      ov.appendChild(ok);
+      if (AUTO) setTimeout(function(){ ok.click(); }, 60);
+    }, pulls.length * (AUTO ? 40 : 620) + (AUTO ? 60 : 400));
+  }, t0);
 }
 function banner(txt, ms){
   var b = el('banner');
@@ -1334,6 +1592,52 @@ function popupAt3D(pos, txt, color){
   setTimeout(function(){ d.remove(); }, 1050);
 }
 
+
+/* ---------- the front door: Starter Stacks + Collection (vision §2) ---------- */
+function openStacks(){
+  var w = el('stacklist'); w.innerHTML = '';
+  Object.keys(STACKS).forEach(function(key){
+    var s = STACKS[key], open = stackUnlocked(key);
+    var d = document.createElement('div');
+    d.className = 'mapnode card' + (open ? ' cur' : '');
+    d.style.flexDirection = 'column';
+    d.style.alignItems = 'flex-start';
+    if (!open) d.style.opacity = 0.45;
+    d.innerHTML = '<span>' + s.name + '</span>' +
+      '<span class="st" style="text-transform:none">' + (open ? s.desc : 'LOCKED — ' + s.unlock) + '</span>' +
+      (open ? '<span class="st">' + s.binder.length + ' chips · ' +
+        s.pouch.map(function(k){ return SLAMMERS[k].name; }).join(' + ') + '</span>' : '');
+    if (open) d.addEventListener('click', function(){
+      newRun(key);
+      showMap();
+    });
+    w.appendChild(d);
+  });
+  showScreen('stacks');
+  if (AUTO) setTimeout(function(){ newRun('sandlot'); showMap(); }, 120);
+}
+function openCollection(){
+  var coll = {};
+  try{ coll = JSON.parse(localStorage.getItem('slam_coll') || '{}'); }catch(e){}
+  var g = el('collgrid'); g.innerHTML = '';
+  var owned = 0, total = 0;
+  Object.keys(DESIGNS).forEach(function(key){
+    var d = DESIGNS[key];
+    if (['slammer','back','face','coin'].indexOf(d.rarity) >= 0) return;
+    total++;
+    var n = coll[key] || 0;
+    if (n) owned++;
+    var card = document.createElement('div');
+    card.className = 'tz ' + d.rarity;
+    card.innerHTML = '<img src="' + designURL(key) + '"' +
+      (n ? '' : ' style="filter:brightness(0.12)"') + '><div class="nm">' +
+      (n ? d.name : '???') + '</div>' +
+      (n ? '<div class="fx">owned ×' + n + ' all-time</div>' : '');
+    g.appendChild(card);
+  });
+  el('collsub').textContent = owned + ' of ' + total + ' designs ever owned';
+  showScreen('collection');
+}
 /* ================================================================
    ANTE SCREEN
    ================================================================ */
@@ -1383,8 +1687,13 @@ function buildBinderGrid(ante){
     var d = DESIGNS[entry.key];
     var card = document.createElement('div');
     card.className = 'tz ' + d.rarity;
-    card.innerHTML = '<img src="' + designURL(entry.key) + '"><div class="nm">' + d.name +
-      '</div><div class="fx">' + (d.fxdesc || (entry.prov ? 'won off ' + entry.prov : '')) + '</div>';
+    var line = d.fxdesc || (entry.prov ? 'won off ' + entry.prov : '');
+    card.innerHTML = '<img src="' + designURL(entry.key) + '"' +
+      ((entry.wear || 0) >= 3 ? ' style="filter:grayscale(.25) contrast(.92)"' : '') +
+      '><div class="nm">' + d.name +
+      '</div><div class="fx">' + line + ' · LOYALTY +' + rank(entry.key) + '</div>' +
+      (entry.finish ? '<div class="fnsh">' + entry.finish.toUpperCase() + '</div>' : '') +
+      ((entry.wear || 0) >= 3 ? '<div class="wear">SURVIVOR ×' + entry.wear + '</div>' : '');
     card.addEventListener('click', function(){ toggleStake(i, ante); });
     g.appendChild(card);
   });
@@ -1438,6 +1747,12 @@ function startMatch(){
   r.stake.forEach(function(k){ r.binder.splice(r.binder.indexOf(k), 1); });
 
   M = { rival: r, pot: [], yourCaps: [], rivalCaps: [], turn: 'you', slams: 0 };
+  var node = NODES[run.stage] || {};
+  M.field = node.field || null;
+  M.wincon = node.wincon || null;
+  M.anteRankYou = 0; M.anteRankRival = 0;
+  mine.forEach(function(e){ M.anteRankYou += rank(e.key); });
+  r.stake.forEach(function(k){ M.anteRankRival += rank(k); });
   var stack = [];
   mine.forEach(function(e){ stack.push({ key: e.key, stakedBy: 'you', entry: e }); });
   r.stake.forEach(function(k){ stack.push({ key: k, stakedBy: 'rival', entry: { key: k, prov: null } }); });
@@ -1452,19 +1767,38 @@ function startMatch(){
     scene.add(mesh);
     M.pot.push({
       key: s.key, design: DESIGNS[s.key], stakedBy: s.stakedBy, entry: s.entry,
+      finish: s.entry.finish || null,
       mesh: mesh, vel: new THREE.Vector3(), angVel: new THREE.Vector3(),
       bR: TUNE.TAZO_R, bH: TUNE.TAZO_H,
       settled: true, captured: null, disturbed: false,
       shadow: makeShadow(TUNE.TAZO_R)
     });
   });
+  M.pot.forEach(function(t){ if (t.finish === 'static') staticize(t); });
+  /* wincon: bounty — one marked chip is worth the match */
+  if (M.wincon === 'bounty'){
+    var rchips = M.pot.filter(function(t){ return t.stakedBy === 'rival'; });
+    var bt = rchips[Math.floor(rnd(0, rchips.length))] || M.pot[0];
+    bt.bounty = true;
+    var bring = new THREE.Mesh(
+      new THREE.RingGeometry(0.56, 0.68, 20),
+      new THREE.MeshBasicMaterial({ color: 0xf5b93d, transparent: true, opacity: 0.85,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    bring.rotation.x = -Math.PI / 2; bring.position.y = TUNE.TAZO_H;
+    bt.mesh.add(bring);
+    tlog('  BOUNTY on ' + bt.design.name);
+  }
   /* HUD */
   el('rportrait').src = designURL(r.face);
   el('rname').textContent = r.name;
   el('rname').style.color = r.accent;
-  if (r.rule){
+  var chips = [];
+  if (r.rule) chips.push('HOUSE RULE: ' + r.ruleName + ' — ' + r.ruleDesc);
+  if (M.field === 'tilt') chips.push('TILTED COURT — everything drifts downhill');
+  if (M.wincon === 'bounty') chips.push('BOUNTY — the marked chip is worth the match');
+  if (chips.length){
     el('rulechip').style.display = 'inline-block';
-    el('rulechip').textContent = 'HOUSE RULE: ' + r.ruleName + ' — ' + r.ruleDesc;
+    el('rulechip').textContent = chips.join(' · ');
   } else el('rulechip').style.display = 'none';
   el('rivalcaps').innerHTML = ''; el('yourcaps').innerHTML = '';
   M.bust = makeBust(r);
@@ -1472,7 +1806,8 @@ function startMatch(){
   M.bellAt = 8 + Math.round(M.pot.length * 2.5);
   buildPouch();
   showScreen(null);
-  tlog('MATCH start vs ' + r.name + ' pot=' + M.pot.length + ' bellAt=' + M.bellAt);
+  tlog('MATCH start vs ' + r.name + ' pot=' + M.pot.length + ' bellAt=' + M.bellAt +
+    (M.field ? ' field=' + M.field : '') + (M.wincon ? ' wincon=' + M.wincon : ''));
   startCoinToss();
 }
 
@@ -1482,6 +1817,7 @@ function startCoinToss(){
   mode = 'menu';
   coinState = { caller: Math.random() < 0.5 ? 'you' : 'rival', call: null, t: 0 };
   banner('THE TOSS', 800);
+  if (!AUTO && tutStep < 3) bark('"winner keeps what he flips. you know how this works."');
   if (coinState.caller === 'you'){
     if (AUTO) setTimeout(function(){ chooseCall(Math.random() < 0.5 ? 'heads' : 'tails'); }, 120);
     else setTimeout(function(){ el('calltoss').classList.add('show'); }, 500);
@@ -1700,6 +2036,9 @@ function slamImpactAt(px, pz, pow, side, spec, mult, att){
     if (M.rival.rule === 'mint' && t.stakedBy === 'rival') inMult *= 0.65;
     var ph = t.design.phys || {};
     inMult *= (ph.imp || 1);
+    /* LOYALTY (vision §8): rare chips fight to come home — a bounded,
+       declared torque assist when their owner is the one slamming */
+    var loyal = t.stakedBy === side ? 1 + 0.06 * rank(t.key) : 1;
     var fall = 1 - d / R;
     var str = (TUNE.IMP_S_BASE + pow * TUNE.IMP_S_POW) * outMult * inMult;
     var dx = t.mesh.position.x - px, dz = t.mesh.position.z - pz;
@@ -1722,7 +2061,7 @@ function slamImpactAt(px, pz, pow, side, spec, mult, att){
     var base = str * fall * laneF;
     /* flip torque falls off harder than push: center hits flip, edge hits slide */
     var angK = str * Math.pow(fall, TUNE.IMP_ANG_POW) * (spec.ang || 1) * (ph.ang || 1)
-      * laneT * (grip ? TUNE.GRIP_T : 1);
+      * laneT * (grip ? TUNE.GRIP_T : 1) * loyal;
     var vx = pushX * base * 0.55 + rnd(-0.4, 0.4);
     var vz = pushZ * base * 0.55 + rnd(-0.4, 0.4);
     var vy = base * (0.72 + Math.random() * 0.45);
@@ -1816,6 +2155,7 @@ function stepTazo(t, dt){
   if (t.settling){ stepSettling(t, dt); return; }
   var p = t.mesh.position, v = t.vel;
   v.y -= TUNE.GRAV * (t.design.phys ? (t.design.phys.grav || 1) : 1) * dt;
+  if (M && M.field === 'tilt') v.x += 3.4 * dt;   /* tilted court: downhill drift */
   p.x += v.x * dt; p.y += v.y * dt; p.z += v.z * dt;
   /* arena curb */
   var rr = Math.sqrt(p.x*p.x + p.z*p.z);
@@ -1945,6 +2285,7 @@ function stepSettling(t, dt){
 }
 function finishSettle(t){
   t.settled = true;
+  if (t.finish === 'static') destaticize(t);   /* the picture tunes in */
   if (!M) return;
   /* rest on top of any settled chip we still overlap (bead-consistent height) */
   var lift = 0;
@@ -1982,7 +2323,10 @@ function computeBeads(body){
   }
 }
 function wakeChip(t){
-  if (t.settled || t.settling){ t.settled = false; t.settling = null; t.disturbed = true; }
+  if (t.settled || t.settling){
+    t.settled = false; t.settling = null; t.disturbed = true;
+    if (t.finish === 'static') staticize(t);   /* scrambled again while moving */
+  }
 }
 function collidePass(){
   var bodies = [];
@@ -2124,6 +2468,7 @@ function showCallout(c, side){
   sfxCallout(c.rank);
   clearTimeout(showCallout._t);
   showCallout._t = setTimeout(function(){ d.className = ''; }, 1150);
+  if (c.rank >= 5 && side === 'you' && M) M.styleBonus = (M.styleBonus || 0) + 1;
   tlog('  CALLOUT ' + c.key + (c.rank >= 5 ? ' [style bonus]' : ''));
 }
 /* ================================================================
@@ -2177,6 +2522,13 @@ function captureTazo(t, side, chainQ){
   if (side === 'you' && t.stakedBy === 'rival'){ bark(M.rival.barks.ouch); bustRecoil = 1; }
   if (side === 'rival' && t.stakedBy === 'you'){ bark(M.rival.barks.hit); bustBob = 1; }
   tlog('  CAP ' + side + ' <- ' + t.design.name + ' (staked by ' + t.stakedBy + ')');
+
+  /* wincon: bounty — the marked chip decides the match */
+  if (t.bounty && M && !M.bountyDone){
+    M.bountyDone = side;
+    banner('BOUNTY!', 1400);
+    tlog('  BOUNTY taken by ' + side);
+  }
 
   var fx = t.design.effect;
   if (fx === 'whoopee'){
@@ -2283,7 +2635,7 @@ function maybeEndTurn(){
   turnEnding = true;
   setTimeout(function(){
     if (!M) return;
-    if (alive().length === 0){ endMatch(); return; }
+    if (M.bountyDone || alive().length === 0){ endMatch(); return; }
     if (M.slams >= M.bellAt){ ringBell(); return; }
     beginTurn(M.turn === 'you' ? 'rival' : 'you');
   }, AUTO ? 80 : (co ? 1050 : 550));
@@ -2301,8 +2653,13 @@ function ringBell(){
   banner('THE BELL RINGS!', 1400);
   tlog('BELL at slams=' + M.slams);
   var r = M.rival;
+  M.bellSaved = 0;
   alive().forEach(function(t){
-    if (t.stakedBy === 'you') run.binder.push(t.entry);
+    if (t.stakedBy === 'you'){
+      t.entry.wear = (t.entry.wear || 0) + 1;   /* SURVIVOR wear: staked and lived */
+      binderAdd(t.entry);
+      M.bellSaved++;
+    }
     else r.binder.push(t.key);
     scene.remove(t.mesh); dropShadow(t);
     t.captured = 'bell';
@@ -2316,18 +2673,55 @@ function endMatch(){
   var y = M.yourCaps.length, rv = M.rivalCaps.length;
   var r = M.rival;
   var res = y > rv ? 'win' : (rv > y ? 'lose' : 'draw');
+  /* bounty overrides the count — and the untouched pot goes home */
+  if (M.bountyDone){
+    res = M.bountyDone === 'you' ? 'win' : 'lose';
+    alive().forEach(function(t){
+      if (t.stakedBy === 'you') binderAdd(t.entry);
+      else r.binder.push(t.key);
+      scene.remove(t.mesh); dropShadow(t);
+      t.captured = 'bounty';
+    });
+  }
   tlog('MATCH end: you=' + y + ' rival=' + rv + ' -> ' + res);
 
   /* for keeps: migrate everything captured */
   var gained = [], lost = [];
   M.yourCaps.forEach(function(t){
     var prov = t.stakedBy === 'rival' ? r.name : t.entry.prov;
-    run.binder.push({ key: t.key, prov: prov });
+    var wear = t.stakedBy === 'you' ? (t.entry.wear || 0) + 1 : 0;  /* reclaimed = survived */
+    binderAdd({ key: t.key, prov: prov, finish: t.stakedBy === 'you' ? t.entry.finish : null, wear: wear });
     gained.push(t.key);
   });
   M.rivalCaps.forEach(function(t){
     r.binder.push(t.key);
     if (t.stakedBy === 'you') lost.push(t.key);
+  });
+
+  /* ---------- Lunch Money: itemized, earned, honest (vision §3) ---------- */
+  var rlines = [];
+  if (res === 'win') rlines.push(['WIN', 4]);
+  if (y > 0) rlines.push(['CAPTURES ×' + y, y]);
+  if (res === 'win' && rv === 0 && y > 0) rlines.push(['CLEAN SWEEP', 3]);
+  if (res === 'win' && M.anteRankYou < M.anteRankRival) rlines.push(['UNDERDOG', 2]);
+  if (M.bellSaved) rlines.push(['BELL SAVE ×' + M.bellSaved, M.bellSaved]);
+  if (M.styleBonus) rlines.push(['STYLE', M.styleBonus]);
+  var earned = 0;
+  rlines.forEach(function(l){ earned += l[1]; });
+  run.money += earned;
+  tlog('MONEY +' + earned + ' -> ' + run.money +
+    ' [' + rlines.map(function(l){ return l[0] + ':' + l[1]; }).join(' ') + ']');
+  var rc = el('receipt'); rc.innerHTML = '';
+  el('receiptcard').style.display = rlines.length ? 'block' : 'none';
+  rlines.push(['LUNCH MONEY — now $' + run.money, earned]);
+  rlines.forEach(function(l, i){
+    setTimeout(function(){
+      var d = document.createElement('div');
+      d.className = 'rline' + (i === rlines.length - 1 ? ' total' : '');
+      d.innerHTML = '<span>' + l[0] + '</span><span>+$' + l[1] + '</span>';
+      rc.appendChild(d);
+      sfxCash();
+    }, AUTO ? 10 : 300 + i * 340);
   });
 
   if (res === 'win'){ sfxWin(); } else if (res === 'lose'){ sfxLose(); }
@@ -2396,8 +2790,12 @@ function endRun(won, why){
     img.title = DESIGNS[e.key].name + (e.prov ? ' — won off ' + e.prov : '');
     b.appendChild(img);
   });
+  /* meta unlocks: breadth, not power */
+  if (won && unlockStack('heavy')) el('runendsub').textContent += ' — NEW STARTER STACK: CURBSIDE.';
+  var rares = run.binder.filter(function(e){ return rank(e.key) >= 2; }).length;
+  if (rares >= 5 && unlockStack('chaos')) el('runendsub').textContent += ' — NEW STARTER STACK: FIRECRACKER.';
   showScreen('runend');
-  tlog('RUN end: ' + (won ? 'WON' : 'LOST(' + (why||'') + ')') + ' binder=' + run.binder.length);
+  tlog('RUN end: ' + (won ? 'WON' : 'LOST(' + (why||'') + ')') + ' binder=' + run.binder.length + ' $' + run.money);
   if (AUTO){
     document.title = 'TESTDONE ' + (won ? 'WON' : 'LOST') + ' binder=' + run.binder.length;
     tlog('TESTDONE');
@@ -2423,6 +2821,17 @@ function pointerToGround(ev){
    3. POWER (hold; release at the peak of the curve)
    Touch-friendly: each phase is its own press-and-release. */
 var throwAtt = null, tiltAnchor = { x: 0, z: 0 };
+/* the played tutorial (vision §2): three lessons over run one's opening
+   slams, one throw-layer each; never repeats, never blocks input */
+var tutStep = (function(){
+  if (AUTO) return 99;
+  try{ return localStorage.getItem('slam_tut') ? 99 : 0; }catch(e){ return 99; }
+})();
+function tutAdvance(){
+  if (tutStep >= 3) return;
+  tutStep++;
+  if (tutStep >= 3){ try{ localStorage.setItem('slam_tut', '1'); }catch(e){} }
+}
 function setHint(txt){ el('hint').textContent = txt; }
 function ghostAt(x, y, z, att){
   ghost.visible = true;
@@ -2482,11 +2891,23 @@ el('gl').addEventListener('pointerdown', function(ev){
   var p = pointerToGround(ev);
   if (!p) return;
   if (mode === 'idle'){
+    if (tutStep < 2){
+      /* lessons 1–2: tilt locked flat; straight to aiming */
+      mode = 'aimloc';
+      throwAtt = { dx: 0, dz: 1, tilt: 0, grip: false, scatter: 0 };
+      aimPos.x = p.x; aimPos.z = p.z;
+      reticle.material.color.set(0x7fd9c0);
+      reticle.visible = true;
+      setHint(tutStep === 0 ? 'LESSON 1 — drag the ring onto the stack. let go.'
+        : 'LESSON 2 — aim, release, then HOLD anywhere: let go at the peak.');
+      return;
+    }
     /* phase 1: tilt dial — drag away from the touch point to tip */
     mode = 'tilt';
     tiltAnchor.x = p.x; tiltAnchor.z = p.z;
     throwAtt = { dx: 0, dz: 1, tilt: 0, grip: false, scatter: 0 };
-    setHint('TILT — drag to tip the slammer · tap = flat');
+    setHint(tutStep === 2 ? 'LESSON 3 — TILT: drag to tip it. edge bites, flat sweeps.'
+      : 'TILT — drag to tip the slammer · tap = flat');
   } else if (mode === 'aimloc'){
     aimPos.x = p.x; aimPos.z = p.z;
     reticle.material.color.set(0x7fd9c0);
@@ -2551,6 +2972,13 @@ window.addEventListener('pointerup', function(ev){
     reticle.visible = true;
     setHint('AIM — drag the target ring, let go to lock');
   } else if (mode === 'aimloc'){
+    if (tutStep === 0){
+      /* lesson 1: power is automatic — just the aim */
+      tutAdvance();
+      resetThrow();
+      doSlam('you', aimPos.x, aimPos.z, 0.75, { dx: 0, dz: 1, tilt: 0, grip: false, scatter: 0.1 });
+      return;
+    }
     mode = 'power';
     aimT = -1;   /* curve waits for the phase-3 press */
     setHint('POWER — press and hold · release at the peak');
@@ -2571,6 +2999,7 @@ window.addEventListener('pointerup', function(ev){
       sfxGrip();
     }
     resetThrow();
+    tutAdvance();
     doSlam('you', aimPos.x, aimPos.z, clamp(p, 0.08, 1), att);
   }
 });
@@ -2578,14 +3007,16 @@ window.addEventListener('pointerup', function(ev){
 /* ---------- buttons ---------- */
 el('startbtn').addEventListener('click', function(){
   audioInit();
-  newRun();
-  showMap();
+  openStacks();
 });
+el('collbtn').addEventListener('click', function(){ audioInit(); openCollection(); });
+el('collback').addEventListener('click', function(){ showScreen('title'); });
+el('stacksback').addEventListener('click', function(){ showScreen('title'); });
 el('slambtn').addEventListener('click', function(){ startMatch(); });
 el('walkbtn').addEventListener('click', function(){ endRun(false, 'walk'); });
 el('resbtn').addEventListener('click', onResultContinue);
 el('runendbtn').addEventListener('click', function(){
-  newRun(); showMap();
+  openStacks();
 });
 el('gobtn').addEventListener('click', function(){
   var n = NODES[run.stage];
@@ -2595,7 +3026,10 @@ el('leavebtn').addEventListener('click', function(){
   run.stage++;
   showMap();
 });
-el('tradebtn').addEventListener('click', doTrade);
+el('sellbtn').addEventListener('click', function(){
+  storeMode = storeMode === 'buy' ? 'sell' : 'buy';
+  renderStore();
+});
 el('callheads').addEventListener('click', function(){ audioInit(); chooseCall('heads'); });
 el('calltails').addEventListener('click', function(){ audioInit(); chooseCall('tails'); });
 
@@ -2901,6 +3335,17 @@ function loop(ts){
 
   updateEmbers(dt);
 
+  /* finishes: HOLO sheen moves with time and tumble; STATIC snow crawls */
+  if (M){
+    var hueT = ts * 0.00025;
+    M.pot.forEach(function(t){
+      if (t.captured || t.finish !== 'holo') return;
+      _sn.set(0, 1, 0).applyQuaternion(t.mesh.quaternion);
+      t.mesh.material[1].emissive.setHSL((hueT + _sn.x * 0.25 + _sn.z * 0.15 + 1) % 1, 0.75, 0.15);
+    });
+    if (frameN % 3 === 0) staticTex.offset.set(Math.random(), Math.random());
+  }
+
   /* camera: frame the live cluster, drift to the aim, follow the slam */
   var cfit = clusterFit();
   _camV.set(cfit.x, 0, cfit.z);
@@ -2965,6 +3410,11 @@ nextFrame(loop);
 el('courtprev').textContent = NODES.map(function(n){
   return n.t === 'store' ? 'CORNER STORE' : RIVALS[n.r].turf;
 }).join(' → ');
+/* knob-system harness: ?knobtest=1 forces the first node hot */
+if (/[?&]knobtest=1/.test(location.search)){
+  NODES[0].field = 'tilt';
+  NODES[0].wincon = 'bounty';
+}
 mark('clean');
 tlog('BOOT ok v' + VERSION);
 if (AUTO){

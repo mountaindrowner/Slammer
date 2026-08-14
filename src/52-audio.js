@@ -27,6 +27,7 @@ function sfxTick(v){
 }
 function sfxFlip(){ tone(520, 0.09, 'square', 0.06, 900); }
 function sfxGrip(){ tone(660, 0.07, 'square', 0.07, 990); setTimeout(function(){ tone(990, 0.12, 'square', 0.08, 1320); }, 70); }
+function sfxCash(){ tone(1180, 0.05, 'square', 0.05, 1600); setTimeout(function(){ tone(1570, 0.07, 'square', 0.05); }, 55); }
 function sfxBoing(){ tone(220, 0.25, 'sine', 0.1, 660); }
 function sfxBoom(){ tone(90, 0.4, 'sawtooth', 0.14, 30); }
 function sfxWin(){ tone(523,0.12,'square',0.07); setTimeout(function(){tone(659,0.12,'square',0.07);},120); setTimeout(function(){tone(784,0.2,'square',0.08);},240); }

@@ -11,6 +11,7 @@
   <div class="title-logo">SLAM<br>MERS</div>
   <div class="subtitle">playing for keeps.<br>flip 'em, keep 'em, clean out the neighborhood.</div>
   <button id="startbtn">SLAM IT</button>
+  <button class="ghost" id="collbtn">COLLECTION</button>
   <div class="courtline" id="courtprev"></div>
 </div>
 
@@ -67,6 +68,8 @@
 <!-- COURT MAP -->
 <div class="screen" id="map">
   <h2 style="font-size:26px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">THE NEIGHBORHOOD</h2>
+  <div class="shout" id="mapmoney" style="font-size:13px;color:var(--pop)"></div>
+  <div class="say" id="maprumor" style="font-size:11px;color:var(--cyan)"></div>
   <div id="mapnodes" style="display:flex;flex-direction:column;gap:10px;max-width:340px;width:100%"></div>
   <button id="gobtn">GO</button>
 </div>
@@ -75,15 +78,30 @@
 <div class="screen" id="store">
   <div class="card demand">
     <div class="who shout">THE CORNER STORE</div>
-    <div class="say">"trades only. no refunds. don't touch the candy."</div>
+    <div class="say">"cash only. no refunds. don't touch the candy."</div>
   </div>
-  <div id="offers" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:340px"></div>
-  <div class="shout" id="payline" style="font-size:11px;color:var(--cyan);min-height:14px"></div>
-  <div class="binder-grid" id="storegrid"></div>
+  <div class="shout" id="payline" style="font-size:11px;color:var(--cyan);min-height:14px;text-align:center;max-width:340px"></div>
+  <div id="offers" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:352px"></div>
   <div class="ante-btns">
     <button class="ghost" id="leavebtn">LEAVE</button>
-    <button id="tradebtn" disabled>TRADE</button>
+    <button id="sellbtn">SELL INSTEAD</button>
   </div>
+</div>
+<div id="bagreveal"></div>
+
+<!-- STARTER STACKS -->
+<div class="screen" id="stacks">
+  <h2 style="font-size:24px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">PICK YOUR STACK</h2>
+  <div id="stacklist" style="display:flex;flex-direction:column;gap:12px;max-width:340px;width:100%"></div>
+  <button class="ghost" id="stacksback">BACK</button>
+</div>
+
+<!-- COLLECTION -->
+<div class="screen" id="collection">
+  <h2 style="font-size:24px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">THE COLLECTION</h2>
+  <div class="subtitle" id="collsub"></div>
+  <div class="binder-grid" id="collgrid" style="max-height:56vh"></div>
+  <button class="ghost" id="collback">BACK</button>
 </div>
 
 <!-- COIN CALL -->
@@ -106,6 +124,10 @@
     <div class="resultlist" id="gainlist" style="margin:8px 0"></div>
     <div class="shout" style="font-size:11px;color:var(--pink)" id="losthead"></div>
     <div class="resultlist" id="lostlist" style="margin-top:8px"></div>
+  </div>
+  <div class="card" style="max-width:340px;width:100%" id="receiptcard">
+    <div class="shout" style="font-size:11px;color:var(--pop);text-align:center">THE RECEIPT</div>
+    <div id="receipt"></div>
   </div>
   <button id="resbtn">CONTINUE</button>
 </div>

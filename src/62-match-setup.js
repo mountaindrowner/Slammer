@@ -10,6 +10,12 @@ function startMatch(){
   r.stake.forEach(function(k){ r.binder.splice(r.binder.indexOf(k), 1); });
 
   M = { rival: r, pot: [], yourCaps: [], rivalCaps: [], turn: 'you', slams: 0 };
+  var node = NODES[run.stage] || {};
+  M.field = node.field || null;
+  M.wincon = node.wincon || null;
+  M.anteRankYou = 0; M.anteRankRival = 0;
+  mine.forEach(function(e){ M.anteRankYou += rank(e.key); });
+  r.stake.forEach(function(k){ M.anteRankRival += rank(k); });
   var stack = [];
   mine.forEach(function(e){ stack.push({ key: e.key, stakedBy: 'you', entry: e }); });
   r.stake.forEach(function(k){ stack.push({ key: k, stakedBy: 'rival', entry: { key: k, prov: null } }); });
@@ -24,19 +30,38 @@ function startMatch(){
     scene.add(mesh);
     M.pot.push({
       key: s.key, design: DESIGNS[s.key], stakedBy: s.stakedBy, entry: s.entry,
+      finish: s.entry.finish || null,
       mesh: mesh, vel: new THREE.Vector3(), angVel: new THREE.Vector3(),
       bR: TUNE.TAZO_R, bH: TUNE.TAZO_H,
       settled: true, captured: null, disturbed: false,
       shadow: makeShadow(TUNE.TAZO_R)
     });
   });
+  M.pot.forEach(function(t){ if (t.finish === 'static') staticize(t); });
+  /* wincon: bounty — one marked chip is worth the match */
+  if (M.wincon === 'bounty'){
+    var rchips = M.pot.filter(function(t){ return t.stakedBy === 'rival'; });
+    var bt = rchips[Math.floor(rnd(0, rchips.length))] || M.pot[0];
+    bt.bounty = true;
+    var bring = new THREE.Mesh(
+      new THREE.RingGeometry(0.56, 0.68, 20),
+      new THREE.MeshBasicMaterial({ color: 0xf5b93d, transparent: true, opacity: 0.85,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    bring.rotation.x = -Math.PI / 2; bring.position.y = TUNE.TAZO_H;
+    bt.mesh.add(bring);
+    tlog('  BOUNTY on ' + bt.design.name);
+  }
   /* HUD */
   el('rportrait').src = designURL(r.face);
   el('rname').textContent = r.name;
   el('rname').style.color = r.accent;
-  if (r.rule){
+  var chips = [];
+  if (r.rule) chips.push('HOUSE RULE: ' + r.ruleName + ' — ' + r.ruleDesc);
+  if (M.field === 'tilt') chips.push('TILTED COURT — everything drifts downhill');
+  if (M.wincon === 'bounty') chips.push('BOUNTY — the marked chip is worth the match');
+  if (chips.length){
     el('rulechip').style.display = 'inline-block';
-    el('rulechip').textContent = 'HOUSE RULE: ' + r.ruleName + ' — ' + r.ruleDesc;
+    el('rulechip').textContent = chips.join(' · ');
   } else el('rulechip').style.display = 'none';
   el('rivalcaps').innerHTML = ''; el('yourcaps').innerHTML = '';
   M.bust = makeBust(r);
@@ -44,7 +69,8 @@ function startMatch(){
   M.bellAt = 8 + Math.round(M.pot.length * 2.5);
   buildPouch();
   showScreen(null);
-  tlog('MATCH start vs ' + r.name + ' pot=' + M.pot.length + ' bellAt=' + M.bellAt);
+  tlog('MATCH start vs ' + r.name + ' pot=' + M.pot.length + ' bellAt=' + M.bellAt +
+    (M.field ? ' field=' + M.field : '') + (M.wincon ? ' wincon=' + M.wincon : ''));
   startCoinToss();
 }
 
@@ -54,6 +80,7 @@ function startCoinToss(){
   mode = 'menu';
   coinState = { caller: Math.random() < 0.5 ? 'you' : 'rival', call: null, t: 0 };
   banner('THE TOSS', 800);
+  if (!AUTO && tutStep < 3) bark('"winner keeps what he flips. you know how this works."');
   if (coinState.caller === 'you'){
     if (AUTO) setTimeout(function(){ chooseCall(Math.random() < 0.5 ? 'heads' : 'tails'); }, 120);
     else setTimeout(function(){ el('calltoss').classList.add('show'); }, 500);

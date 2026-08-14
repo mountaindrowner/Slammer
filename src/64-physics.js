@@ -66,6 +66,9 @@ function slamImpactAt(px, pz, pow, side, spec, mult, att){
     if (M.rival.rule === 'mint' && t.stakedBy === 'rival') inMult *= 0.65;
     var ph = t.design.phys || {};
     inMult *= (ph.imp || 1);
+    /* LOYALTY (vision §8): rare chips fight to come home — a bounded,
+       declared torque assist when their owner is the one slamming */
+    var loyal = t.stakedBy === side ? 1 + 0.06 * rank(t.key) : 1;
     var fall = 1 - d / R;
     var str = (TUNE.IMP_S_BASE + pow * TUNE.IMP_S_POW) * outMult * inMult;
     var dx = t.mesh.position.x - px, dz = t.mesh.position.z - pz;
@@ -88,7 +91,7 @@ function slamImpactAt(px, pz, pow, side, spec, mult, att){
     var base = str * fall * laneF;
     /* flip torque falls off harder than push: center hits flip, edge hits slide */
     var angK = str * Math.pow(fall, TUNE.IMP_ANG_POW) * (spec.ang || 1) * (ph.ang || 1)
-      * laneT * (grip ? TUNE.GRIP_T : 1);
+      * laneT * (grip ? TUNE.GRIP_T : 1) * loyal;
     var vx = pushX * base * 0.55 + rnd(-0.4, 0.4);
     var vz = pushZ * base * 0.55 + rnd(-0.4, 0.4);
     var vy = base * (0.72 + Math.random() * 0.45);
@@ -182,6 +185,7 @@ function stepTazo(t, dt){
   if (t.settling){ stepSettling(t, dt); return; }
   var p = t.mesh.position, v = t.vel;
   v.y -= TUNE.GRAV * (t.design.phys ? (t.design.phys.grav || 1) : 1) * dt;
+  if (M && M.field === 'tilt') v.x += 3.4 * dt;   /* tilted court: downhill drift */
   p.x += v.x * dt; p.y += v.y * dt; p.z += v.z * dt;
   /* arena curb */
   var rr = Math.sqrt(p.x*p.x + p.z*p.z);
@@ -311,6 +315,7 @@ function stepSettling(t, dt){
 }
 function finishSettle(t){
   t.settled = true;
+  if (t.finish === 'static') destaticize(t);   /* the picture tunes in */
   if (!M) return;
   /* rest on top of any settled chip we still overlap (bead-consistent height) */
   var lift = 0;

@@ -50,6 +50,13 @@ function captureTazo(t, side, chainQ){
   if (side === 'rival' && t.stakedBy === 'you'){ bark(M.rival.barks.hit); bustBob = 1; }
   tlog('  CAP ' + side + ' <- ' + t.design.name + ' (staked by ' + t.stakedBy + ')');
 
+  /* wincon: bounty — the marked chip decides the match */
+  if (t.bounty && M && !M.bountyDone){
+    M.bountyDone = side;
+    banner('BOUNTY!', 1400);
+    tlog('  BOUNTY taken by ' + side);
+  }
+
   var fx = t.design.effect;
   if (fx === 'whoopee'){
     /* detonate after the anticipation beat */
@@ -155,7 +162,7 @@ function maybeEndTurn(){
   turnEnding = true;
   setTimeout(function(){
     if (!M) return;
-    if (alive().length === 0){ endMatch(); return; }
+    if (M.bountyDone || alive().length === 0){ endMatch(); return; }
     if (M.slams >= M.bellAt){ ringBell(); return; }
     beginTurn(M.turn === 'you' ? 'rival' : 'you');
   }, AUTO ? 80 : (co ? 1050 : 550));
@@ -173,8 +180,13 @@ function ringBell(){
   banner('THE BELL RINGS!', 1400);
   tlog('BELL at slams=' + M.slams);
   var r = M.rival;
+  M.bellSaved = 0;
   alive().forEach(function(t){
-    if (t.stakedBy === 'you') run.binder.push(t.entry);
+    if (t.stakedBy === 'you'){
+      t.entry.wear = (t.entry.wear || 0) + 1;   /* SURVIVOR wear: staked and lived */
+      binderAdd(t.entry);
+      M.bellSaved++;
+    }
     else r.binder.push(t.key);
     scene.remove(t.mesh); dropShadow(t);
     t.captured = 'bell';
@@ -188,18 +200,55 @@ function endMatch(){
   var y = M.yourCaps.length, rv = M.rivalCaps.length;
   var r = M.rival;
   var res = y > rv ? 'win' : (rv > y ? 'lose' : 'draw');
+  /* bounty overrides the count — and the untouched pot goes home */
+  if (M.bountyDone){
+    res = M.bountyDone === 'you' ? 'win' : 'lose';
+    alive().forEach(function(t){
+      if (t.stakedBy === 'you') binderAdd(t.entry);
+      else r.binder.push(t.key);
+      scene.remove(t.mesh); dropShadow(t);
+      t.captured = 'bounty';
+    });
+  }
   tlog('MATCH end: you=' + y + ' rival=' + rv + ' -> ' + res);
 
   /* for keeps: migrate everything captured */
   var gained = [], lost = [];
   M.yourCaps.forEach(function(t){
     var prov = t.stakedBy === 'rival' ? r.name : t.entry.prov;
-    run.binder.push({ key: t.key, prov: prov });
+    var wear = t.stakedBy === 'you' ? (t.entry.wear || 0) + 1 : 0;  /* reclaimed = survived */
+    binderAdd({ key: t.key, prov: prov, finish: t.stakedBy === 'you' ? t.entry.finish : null, wear: wear });
     gained.push(t.key);
   });
   M.rivalCaps.forEach(function(t){
     r.binder.push(t.key);
     if (t.stakedBy === 'you') lost.push(t.key);
+  });
+
+  /* ---------- Lunch Money: itemized, earned, honest (vision §3) ---------- */
+  var rlines = [];
+  if (res === 'win') rlines.push(['WIN', 4]);
+  if (y > 0) rlines.push(['CAPTURES ×' + y, y]);
+  if (res === 'win' && rv === 0 && y > 0) rlines.push(['CLEAN SWEEP', 3]);
+  if (res === 'win' && M.anteRankYou < M.anteRankRival) rlines.push(['UNDERDOG', 2]);
+  if (M.bellSaved) rlines.push(['BELL SAVE ×' + M.bellSaved, M.bellSaved]);
+  if (M.styleBonus) rlines.push(['STYLE', M.styleBonus]);
+  var earned = 0;
+  rlines.forEach(function(l){ earned += l[1]; });
+  run.money += earned;
+  tlog('MONEY +' + earned + ' -> ' + run.money +
+    ' [' + rlines.map(function(l){ return l[0] + ':' + l[1]; }).join(' ') + ']');
+  var rc = el('receipt'); rc.innerHTML = '';
+  el('receiptcard').style.display = rlines.length ? 'block' : 'none';
+  rlines.push(['LUNCH MONEY — now $' + run.money, earned]);
+  rlines.forEach(function(l, i){
+    setTimeout(function(){
+      var d = document.createElement('div');
+      d.className = 'rline' + (i === rlines.length - 1 ? ' total' : '');
+      d.innerHTML = '<span>' + l[0] + '</span><span>+$' + l[1] + '</span>';
+      rc.appendChild(d);
+      sfxCash();
+    }, AUTO ? 10 : 300 + i * 340);
   });
 
   if (res === 'win'){ sfxWin(); } else if (res === 'lose'){ sfxLose(); }
@@ -268,8 +317,12 @@ function endRun(won, why){
     img.title = DESIGNS[e.key].name + (e.prov ? ' — won off ' + e.prov : '');
     b.appendChild(img);
   });
+  /* meta unlocks: breadth, not power */
+  if (won && unlockStack('heavy')) el('runendsub').textContent += ' — NEW STARTER STACK: CURBSIDE.';
+  var rares = run.binder.filter(function(e){ return rank(e.key) >= 2; }).length;
+  if (rares >= 5 && unlockStack('chaos')) el('runendsub').textContent += ' — NEW STARTER STACK: FIRECRACKER.';
   showScreen('runend');
-  tlog('RUN end: ' + (won ? 'WON' : 'LOST(' + (why||'') + ')') + ' binder=' + run.binder.length);
+  tlog('RUN end: ' + (won ? 'WON' : 'LOST(' + (why||'') + ')') + ' binder=' + run.binder.length + ' $' + run.money);
   if (AUTO){
     document.title = 'TESTDONE ' + (won ? 'WON' : 'LOST') + ' binder=' + run.binder.length;
     tlog('TESTDONE');

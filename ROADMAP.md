@@ -139,47 +139,47 @@ whether 0.32–0.51 capture variance needs tightening. Phase B starts after that
 
 # PHASE B — ECONOMY & OBJECTS (steps 5–7)
 
-## Step 5 — Lunch Money + the receipt  `[ ]`
+## Step 5 — Lunch Money + the receipt  `[x]` (v0.12.0)
 *Vision §3. Pure UI/state; makes wins legible before the shop can spend them.*
 
-- [ ] `run.money`; match-end awards exactly per the table: $4 win · $1/capture (win or lose) ·
+- [x] `run.money`; match-end awards exactly per the table: $4 win · $1/capture (win or lose) ·
       +$3 clean sweep · +$2 underdog (rank-sum ante'd down) · +$1 per bell-saved staked chip ·
       piggy bank +$1 per $5 held at shop (cap +$5).
-- [ ] The receipt: itemized lines ticking in one at a time with a register ka-ching per line
+- [x] The receipt: itemized lines ticking in one at a time with a register ka-ching per line
       (Web Audio). Callout kickers land here.
-- [ ] Money visible on map/shop screens; $0 at run start (the locked-shop tutorial beat).
+- [x] Money visible on map/shop screens; $0 at run start (the locked-shop tutorial beat).
 - Touches: `endMatch`/result screen, `ringBell` (record survivors), run state, SFX.
 - Harness: receipt lines to tlog; assert money math (`MONEY start=0 … end=N` reconciles).
 - Done when: the receipt reads as "here's what your play earned," line by line.
 
-## Step 6 — Shop v2 + Blind Bags + first finishes  `[ ]`
+## Step 6 — Shop v2 + Blind Bags + first finishes  `[x]` (v0.12.0)
 *Vision §4 + §8. The build moment and the dopamine ritual.*
 
-- [ ] Shop v2 priced in Lunch Money: singles wall (2 chips + 1 slammer, rotating), Trade
+- [x] Shop v2 priced in Lunch Money: singles wall (2 chips + 1 slammer, rotating), Trade
       Counter (sell at kid-logic rates; rotating "collecting this week" bonus), Rumors ($1 —
       reveals next boss's rule + demand on the map).
-- [ ] Blind Bags: Chum ($4, 3 commons) · Weird ($5, 2 effect rares) · Heavy ($5, phys/field) ·
+- [x] Blind Bags: Chum ($4, 3 commons) · Weird ($5, 2 effect rares) · Heavy ($5, phys/field) ·
       Foil ($6, 1 chip, elevated legendary odds, guarantees HOLO+). Reveal ritual: shake →
       peel → slide → rarity glow → face. Never skippable under 2 s (AUTO gets a fast path).
-- [ ] First three finishes, as a `finish` key on chip *instances* (not designs):
+- [x] First three finishes, as a `finish` key on chip *instances* (not designs):
       **HOLO** (view-dependent rainbow sweep — fresnel hue rotation in the face material),
       **STATIC** (TV-snow face that resolves on settle — sells Step 1),
       **SURVIVOR** (earned wear from existing provenance/stake data — scuffs baked into the
       face canvas per match survived).
-- [ ] Finishes are cosmetic-only (METAL later, via `phys`, is the one sanctioned exception).
+- [x] Finishes are cosmetic-only (METAL later, via `phys`, is the one sanctioned exception).
 - Touches: store screens, binder entry shape (`{key, prov, finish, wear}`), `paintDesign`
   (per-instance variants), a material hook for view-dependent effects.
 - Harness: AUTO buys a bag; tlog the pulls; run-end binder reconciles.
 - Done when: a Foil Bag pull is a top-3 moment and a HOLO mid-tumble reads at gameplay zoom.
 
-## Step 7 — LOYALTY  `[ ]`
+## Step 7 — LOYALTY  `[x]` (v0.12.0)
 *Vision §8. Rarity gets teeth — one bounded, declared torque assist.*
 
-- [ ] LOYALTY +1/+2/+3 by rarity, shown on the chip card. When *your* slammer's impact
+- [x] LOYALTY +1/+2/+3 by rarity, shown on the chip card. When *your* slammer's impact
       reaches a chip you own in the Pot, that chip gets a bounded flip-torque assist scaled
       by LOYALTY — through the standard hook path in `slamImpactAt` (ownership-aware `ang`
       multiplier), no dice, no rubber-banding.
-- [ ] Tune inside the Step 2 band (LOYALTY shifts *whose* chips flip, not how many).
+- [x] Tune inside the Step 2 band (LOYALTY shifts *whose* chips flip, not how many).
 - Done when: staking rares is measurably less terrifying (harness: recapture rate of own
   rares up; overall band unchanged across 3 runs).
 
@@ -187,19 +187,19 @@ whether 0.32–0.51 capture variance needs tightening. Phase B starts after that
 
 # PHASE C — THE FRONT DOOR (step 8)
 
-## Step 8 — Menu, Starter Stacks, tutorial  `[ ]`
+## Step 8 — Menu, Starter Stacks, tutorial  `[x]` (v0.12.0, lean pass)
 *Vision §2. The game opens like a game.*
 
-- [ ] Main menu over the live cul-de-sac diorama (Step 4's backdrop reused, golden hour):
+- [x] Main menu over the live cul-de-sac diorama (Step 4's backdrop reused, golden hour):
       PLAY · COLLECTION · SETTINGS, layout reserving future rows (MULTIPLAYER, DAILY COURT).
-- [ ] Starter Stack select: SANDLOT unlocked and inspectable chip-by-chip; two locked stacks
+- [x] Starter Stack select: SANDLOT unlocked and inspectable chip-by-chip; two locked stacks
       visible with one-line unlock hints (Heavy, Chaos as the first pair). Stack = chips +
       slammer (+ later a stated modifier).
-- [ ] Collection screen: all-time chips across runs with finish/provenance/wear (persistent
+- [x] Collection screen: all-time chips across runs with finish/provenance/wear (persistent
       via localStorage — first cross-run state; keep it breadth-only).
-- [ ] The transition: menu framing drops into play framing over the driveway in one ~1.5 s
+- [x] The transition: menu framing drops into play framing over the driveway in one ~1.5 s
       move, skippable after first view.
-- [ ] Played tutorial, run one only: slam 1 aim-only → slam 2 power → slam 3 attitude →
+- [x] Played tutorial, run one only: slam 1 aim-only → slam 2 power → slam 3 attitude →
       first in-band release pays the TOURNAMENT GRIP beat → rival narrates toss/ante/keeps
       in three diegetic lines. Never blocks input beyond one line; never repeats.
 - Touches: screens/flow, `newRun` (stack param), persistence layer, tutorial overlay driver.
@@ -211,15 +211,23 @@ whether 0.32–0.51 capture variance needs tightening. Phase B starts after that
 
 # PHASE D — STRUCTURE & THE ARC (step 9 → content passes)
 
-## Step 9a — The knob system, proven  `[ ]`
+## Step 9a — The knob system, proven  `[x]` (v0.12.0)
 *Vision §6. Three data keys, one instance each, before any content scales.*
 
-- [ ] `NODES[i].field / .layout / .wincon` schema + per-node application hooks.
-- [ ] First field condition: **tilted court** (constant lateral accel in `stepTazo`; visible
+- [x] `NODES[i].field / .layout / .wincon` schema + per-node application hooks.
+- [x] First field condition: **tilted court** (constant lateral accel in `stepTazo`; visible
       as the floor plane actually tilted).
-- [ ] First alt wincon: **Bounty** (marked chip worth the match; everything else terrain).
-- [ ] Dosage rule encoded in act data: Act 1 none, Act 2 one knob/node, Act 3 two, finale three.
+- [x] First alt wincon: **Bounty** (marked chip worth the match; everything else terrain).
+- [x] Dosage rule encoded in act data: Act 1 none, Act 2 one knob/node, Act 3 two, finale three.
 - Harness: **per-wincon auto-drivers** (Bounty AI aims at the mark; assert wincon resolution).
+
+> **v0.12.0 verification notes (steps 5–9a):** full run — receipt itemized all six line
+> types (WIN, CAPTURES, CLEAN SWEEP, UNDERDOG, BELL SAVE wired, STYLE), piggy bank paid,
+> Foil Bag pulled a HOLO, store singles + sell counter + rumors live, first FLIPZILLA fired,
+> LOYALTY landed the band at 0.60 (top edge — watch on phone). `?knobtest=1` proves the knob
+> schema: tilted court + bounty marked/contested/taken across 9 matches. Step 8 is a lean
+> pass: stacks (SANDLOT + CURBSIDE/FIRECRACKER unlocks), Collection (localStorage), 3-lesson
+> played tutorial, menu over the diorama — no cinematic menu-drop yet. Remaining: 9b, 9c.
 
 ## Step 9b — Branching Court + act framing  `[ ]`
 - [ ] Map v2: branching node graph (~10–14 nodes/act), legible node types (match/shop/boss/?),

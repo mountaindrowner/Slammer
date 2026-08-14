@@ -47,8 +47,13 @@ function buildBinderGrid(ante){
     var d = DESIGNS[entry.key];
     var card = document.createElement('div');
     card.className = 'tz ' + d.rarity;
-    card.innerHTML = '<img src="' + designURL(entry.key) + '"><div class="nm">' + d.name +
-      '</div><div class="fx">' + (d.fxdesc || (entry.prov ? 'won off ' + entry.prov : '')) + '</div>';
+    var line = d.fxdesc || (entry.prov ? 'won off ' + entry.prov : '');
+    card.innerHTML = '<img src="' + designURL(entry.key) + '"' +
+      ((entry.wear || 0) >= 3 ? ' style="filter:grayscale(.25) contrast(.92)"' : '') +
+      '><div class="nm">' + d.name +
+      '</div><div class="fx">' + line + ' · LOYALTY +' + rank(entry.key) + '</div>' +
+      (entry.finish ? '<div class="fnsh">' + entry.finish.toUpperCase() + '</div>' : '') +
+      ((entry.wear || 0) >= 3 ? '<div class="wear">SURVIVOR ×' + entry.wear + '</div>' : '');
     card.addEventListener('click', function(){ toggleStake(i, ante); });
     g.appendChild(card);
   });

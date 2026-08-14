@@ -17,6 +17,17 @@ function pointerToGround(ev){
    3. POWER (hold; release at the peak of the curve)
    Touch-friendly: each phase is its own press-and-release. */
 var throwAtt = null, tiltAnchor = { x: 0, z: 0 };
+/* the played tutorial (vision §2): three lessons over run one's opening
+   slams, one throw-layer each; never repeats, never blocks input */
+var tutStep = (function(){
+  if (AUTO) return 99;
+  try{ return localStorage.getItem('slam_tut') ? 99 : 0; }catch(e){ return 99; }
+})();
+function tutAdvance(){
+  if (tutStep >= 3) return;
+  tutStep++;
+  if (tutStep >= 3){ try{ localStorage.setItem('slam_tut', '1'); }catch(e){} }
+}
 function setHint(txt){ el('hint').textContent = txt; }
 function ghostAt(x, y, z, att){
   ghost.visible = true;
@@ -76,11 +87,23 @@ el('gl').addEventListener('pointerdown', function(ev){
   var p = pointerToGround(ev);
   if (!p) return;
   if (mode === 'idle'){
+    if (tutStep < 2){
+      /* lessons 1–2: tilt locked flat; straight to aiming */
+      mode = 'aimloc';
+      throwAtt = { dx: 0, dz: 1, tilt: 0, grip: false, scatter: 0 };
+      aimPos.x = p.x; aimPos.z = p.z;
+      reticle.material.color.set(0x7fd9c0);
+      reticle.visible = true;
+      setHint(tutStep === 0 ? 'LESSON 1 — drag the ring onto the stack. let go.'
+        : 'LESSON 2 — aim, release, then HOLD anywhere: let go at the peak.');
+      return;
+    }
     /* phase 1: tilt dial — drag away from the touch point to tip */
     mode = 'tilt';
     tiltAnchor.x = p.x; tiltAnchor.z = p.z;
     throwAtt = { dx: 0, dz: 1, tilt: 0, grip: false, scatter: 0 };
-    setHint('TILT — drag to tip the slammer · tap = flat');
+    setHint(tutStep === 2 ? 'LESSON 3 — TILT: drag to tip it. edge bites, flat sweeps.'
+      : 'TILT — drag to tip the slammer · tap = flat');
   } else if (mode === 'aimloc'){
     aimPos.x = p.x; aimPos.z = p.z;
     reticle.material.color.set(0x7fd9c0);
@@ -145,6 +168,13 @@ window.addEventListener('pointerup', function(ev){
     reticle.visible = true;
     setHint('AIM — drag the target ring, let go to lock');
   } else if (mode === 'aimloc'){
+    if (tutStep === 0){
+      /* lesson 1: power is automatic — just the aim */
+      tutAdvance();
+      resetThrow();
+      doSlam('you', aimPos.x, aimPos.z, 0.75, { dx: 0, dz: 1, tilt: 0, grip: false, scatter: 0.1 });
+      return;
+    }
     mode = 'power';
     aimT = -1;   /* curve waits for the phase-3 press */
     setHint('POWER — press and hold · release at the peak');
@@ -165,6 +195,7 @@ window.addEventListener('pointerup', function(ev){
       sfxGrip();
     }
     resetThrow();
+    tutAdvance();
     doSlam('you', aimPos.x, aimPos.z, clamp(p, 0.08, 1), att);
   }
 });
@@ -172,14 +203,16 @@ window.addEventListener('pointerup', function(ev){
 /* ---------- buttons ---------- */
 el('startbtn').addEventListener('click', function(){
   audioInit();
-  newRun();
-  showMap();
+  openStacks();
 });
+el('collbtn').addEventListener('click', function(){ audioInit(); openCollection(); });
+el('collback').addEventListener('click', function(){ showScreen('title'); });
+el('stacksback').addEventListener('click', function(){ showScreen('title'); });
 el('slambtn').addEventListener('click', function(){ startMatch(); });
 el('walkbtn').addEventListener('click', function(){ endRun(false, 'walk'); });
 el('resbtn').addEventListener('click', onResultContinue);
 el('runendbtn').addEventListener('click', function(){
-  newRun(); showMap();
+  openStacks();
 });
 el('gobtn').addEventListener('click', function(){
   var n = NODES[run.stage];
@@ -189,7 +222,10 @@ el('leavebtn').addEventListener('click', function(){
   run.stage++;
   showMap();
 });
-el('tradebtn').addEventListener('click', doTrade);
+el('sellbtn').addEventListener('click', function(){
+  storeMode = storeMode === 'buy' ? 'sell' : 'buy';
+  renderStore();
+});
 el('callheads').addEventListener('click', function(){ audioInit(); chooseCall('heads'); });
 el('calltails').addEventListener('click', function(){ audioInit(); chooseCall('tails'); });
 

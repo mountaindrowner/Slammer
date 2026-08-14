@@ -188,3 +188,33 @@ function makeBust(r){
   return g;
 }
 
+
+/* ---------- finishes (vision §8): STATIC + HOLO support ---------- */
+var staticTex = (function(){
+  var cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  var c = cv.getContext('2d');
+  var img = c.createImageData(64, 64);
+  for (var i = 0; i < img.data.length; i += 4){
+    var v = 40 + Math.random() * 190;
+    img.data[i] = img.data[i+1] = img.data[i+2] = v;
+    img.data[i+3] = 255;
+  }
+  c.putImageData(img, 0, 0);
+  var t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.minFilter = THREE.NearestFilter; t.magFilter = THREE.NearestFilter;
+  t.generateMipmaps = false;
+  return t;
+})();
+/* the face is snow until the chip comes to rest — ties into the settle rule */
+function staticize(t){
+  if (!t.realMap) t.realMap = t.mesh.material[1].map;
+  t.mesh.material[1].map = staticTex;
+  t.mesh.material[1].needsUpdate = true;
+}
+function destaticize(t){
+  if (t.realMap && t.mesh.material[1].map !== t.realMap){
+    t.mesh.material[1].map = t.realMap;
+    t.mesh.material[1].needsUpdate = true;
+  }
+}

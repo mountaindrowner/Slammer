@@ -24,7 +24,10 @@ function computeBeads(body){
   }
 }
 function wakeChip(t){
-  if (t.settled || t.settling){ t.settled = false; t.settling = null; t.disturbed = true; }
+  if (t.settled || t.settling){
+    t.settled = false; t.settling = null; t.disturbed = true;
+    if (t.finish === 'static') staticize(t);   /* scrambled again while moving */
+  }
 }
 function collidePass(){
   var bodies = [];

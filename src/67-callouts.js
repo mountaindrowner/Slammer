@@ -34,5 +34,6 @@ function showCallout(c, side){
   sfxCallout(c.rank);
   clearTimeout(showCallout._t);
   showCallout._t = setTimeout(function(){ d.className = ''; }, 1150);
+  if (c.rank >= 5 && side === 'you' && M) M.styleBonus = (M.styleBonus || 0) + 1;
   tlog('  CALLOUT ' + c.key + (c.rank >= 5 ? ' [style bonus]' : ''));
 }
