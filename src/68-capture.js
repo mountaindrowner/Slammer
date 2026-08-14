@@ -61,6 +61,7 @@ function captureTazo(t, side, chainQ){
       if (!M){ return; }
       popupAt3D(pos, 'PBBBBT!!', '#ff8fc7');
       sfxBoom();
+      venueDogBark();   /* the dog loses its mind */
       camShake = 0.5;
       M.pot.forEach(function(o){
         if (o.captured) return;

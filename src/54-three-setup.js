@@ -88,10 +88,17 @@ var ghost = new THREE.Mesh(
 ghost.visible = false;
 scene.add(ghost);
 
-/* ---------- viewport: the viewport lies at load time ---------- */
-var camShake = 0, camPunch = 0, camD = 14;
-var CAM_EL = 42 * Math.PI / 180;  /* lower angle than top-down: foreshortening sells depth */
-var camT = new THREE.Vector3(0, 0, -0.2), _camV = new THREE.Vector3();
+/* ---------- viewport + camera rig ----------
+   Close play, wide world (vision §9): the camera frames the live pot
+   cluster, not the arena; the world lives in the backdrop. A user
+   gesture layer (pinch dolly / twist yaw / drag pan) composes on top
+   of the cinematic sway/follow/punch/shake. Pitch is clamped. */
+var camShake = 0, camPunch = 0, camBaseD = 14;
+var CAM_EL = 36 * Math.PI / 180;
+var camT = new THREE.Vector3(0, 0, 0), _camV = new THREE.Vector3();
+var camAspect = { vHalf: 0.48, hHalf: 0.24 };
+var uYaw = 0, uZoom = 1, uPanX = 0, uPanZ = 0;   /* the user layer */
+var camHoming = false, rivalHomeAt = 0;
 function sizeNow(){
   var w = el('gl').clientWidth || window.innerWidth;
   var h = el('gl').clientHeight || window.innerHeight;
@@ -103,22 +110,34 @@ function sizeNow(){
   fitCamera();
 }
 function fitCamera(){
-  var vHalf = camera.fov * Math.PI / 360;
-  var hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
-  var need = TUNE.ARENA_R + 1.35;
-  camD = clamp(need / Math.tan(Math.min(vHalf, hHalf)), 9, 38);
-  placeCamera(0);
+  camAspect.vHalf = camera.fov * Math.PI / 360;
+  camAspect.hHalf = Math.atan(Math.tan(camAspect.vHalf) * camera.aspect);
+}
+/* the live cluster: every uncaptured chip, the slammer, the toss coin */
+function clusterFit(){
+  var pts = [];
+  if (M) M.pot.forEach(function(t){ if (!t.captured) pts.push(t.mesh.position); });
+  if (slammer) pts.push(slammer.mesh.position);
+  if (coin) pts.push(coin.mesh.position);
+  if (!pts.length) return { x: 0, z: 0, r: 4.2 };
+  var cx = 0, cz = 0;
+  pts.forEach(function(p){ cx += p.x; cz += p.z; });
+  cx /= pts.length; cz /= pts.length;
+  var r = 1.6;
+  pts.forEach(function(p){ r = Math.max(r, hdist(p.x, p.z, cx, cz) + 1.1); });
+  return { x: cx, z: cz, r: Math.min(r, 4.8) };
 }
 function placeCamera(tms){
-  var az = Math.sin(tms * 0.00022) * 0.06; /* idle sway: parallax is the 3D cue */
-  var d = camD - camPunch;
+  var az = Math.sin(tms * 0.00022) * 0.05 + uYaw;
+  var d = camBaseD * uZoom - camPunch;
+  var tx = camT.x + uPanX, tz = camT.z + uPanZ;
   camera.position.set(
-    camT.x + d * Math.cos(CAM_EL) * Math.sin(az),
+    tx + d * Math.cos(CAM_EL) * Math.sin(az),
     d * Math.sin(CAM_EL),
-    camT.z + d * Math.cos(CAM_EL) * Math.cos(az));
+    tz + d * Math.cos(CAM_EL) * Math.cos(az));
   camera.position.x += rnd(-camShake, camShake) * 0.35;
   camera.position.y += rnd(-camShake, camShake) * 0.35;
-  camera.lookAt(camT.x, 0, camT.z);
+  camera.lookAt(tx, 0.15, tz);
 }
 var rszTimer = null;
 window.addEventListener('resize', function(){

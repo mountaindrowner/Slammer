@@ -34,9 +34,45 @@ function resetThrow(){
   el('powwrap').style.visibility = 'hidden';
   el('powfill').classList.remove('grip');
 }
+/* ---------- two-finger camera: pinch dolly, twist yaw, drag pan ----------
+   Composed as a user offset layer over the cinematic rig. A second
+   pointer landing kills any in-progress throw phase. */
+var camPtrs = {}, camPtrN = 0, gPrev = null, gestureUntil = 0, lastTapT = 0;
+function ptrXY(ev){ return { x: ev.clientX, y: ev.clientY }; }
+function gPair(){
+  var ids = Object.keys(camPtrs);
+  if (ids.length < 2) return null;
+  var a = camPtrs[ids[0]], b = camPtrs[ids[1]];
+  return {
+    d: Math.max(20, Math.hypot(b.x - a.x, b.y - a.y)),
+    ang: Math.atan2(b.y - a.y, b.x - a.x),
+    cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2
+  };
+}
 el('gl').addEventListener('pointerdown', function(ev){
   audioInit();
+  camPtrs[ev.pointerId] = ptrXY(ev);
+  camPtrN = Object.keys(camPtrs).length;
+  if (camPtrN === 2){
+    /* camera mode: cancel any in-progress throw input */
+    if (mode === 'tilt' || mode === 'aimloc' || mode === 'power'){
+      resetThrow();
+      mode = 'idle';
+      setHint('TILT — drag to tip the slammer · tap = flat');
+      reticle.visible = false;
+    }
+    gPrev = gPair();
+    gestureUntil = performance.now() + 300;
+    return;
+  }
+  /* double-tap = snap the camera home (outside your throw phases) */
+  var now = performance.now();
+  if (now - lastTapT < 300 && (!M || M.turn !== 'you' || mode === 'sim' || mode === 'drop')){
+    camHoming = true;
+  }
+  lastTapT = now;
   if (!M || M.turn !== 'you') return;
+  if (now < gestureUntil) return;
   var p = pointerToGround(ev);
   if (!p) return;
   if (mode === 'idle'){
@@ -56,6 +92,25 @@ el('gl').addEventListener('pointerdown', function(ev){
   }
 });
 el('gl').addEventListener('pointermove', function(ev){
+  if (camPtrs[ev.pointerId]) camPtrs[ev.pointerId] = ptrXY(ev);
+  if (camPtrN >= 2){
+    var g = gPair();
+    if (g && gPrev){
+      gestureUntil = performance.now() + 300;
+      uZoom = clamp(uZoom * gPrev.d / g.d, 0.55, 1.65);
+      uYaw += g.ang - gPrev.ang;
+      /* pan in camera-relative world space */
+      var az = uYaw, s = camBaseD * uZoom * 0.0016;
+      var dcx = g.cx - gPrev.cx, dcy = g.cy - gPrev.cy;
+      uPanX += (-dcx * Math.cos(az) - dcy * Math.sin(az)) * s;
+      uPanZ += (dcx * Math.sin(az) - dcy * Math.cos(az)) * s;
+      var pl = Math.hypot(uPanX, uPanZ);
+      if (pl > 2.4){ uPanX *= 2.4 / pl; uPanZ *= 2.4 / pl; }
+      camHoming = false;
+    }
+    gPrev = g;
+    return;
+  }
   if (mode !== 'tilt' && mode !== 'aimloc') return;
   var p = pointerToGround(ev);
   if (!p) return;
@@ -72,7 +127,15 @@ el('gl').addEventListener('pointermove', function(ev){
     aimPos.x = p.x; aimPos.z = p.z;
   }
 });
-window.addEventListener('pointerup', function(){
+function dropPtr(ev){
+  delete camPtrs[ev.pointerId];
+  camPtrN = Object.keys(camPtrs).length;
+  if (camPtrN < 2) gPrev = null;
+}
+window.addEventListener('pointercancel', dropPtr);
+window.addEventListener('pointerup', function(ev){
+  dropPtr(ev);
+  if (performance.now() < gestureUntil) return;
   if (!M || M.turn !== 'you') return;
   if (mode === 'tilt'){
     if (throwAtt.tilt < 0.08) throwAtt.tilt = 0;

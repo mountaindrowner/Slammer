@@ -270,7 +270,7 @@
 /* ================================================================
    SLAMMERS — playing-for-keeps tazo roguelite (proof of concept)
    ================================================================ */
-var VERSION = '0.10.0';
+var VERSION = '0.11.0';
 var AUTO = /[?&]auto=1/.test(location.search);
 
 /* ---------- diagnostics: breadcrumbs, error banner, version ---------- */
@@ -692,10 +692,17 @@ var ghost = new THREE.Mesh(
 ghost.visible = false;
 scene.add(ghost);
 
-/* ---------- viewport: the viewport lies at load time ---------- */
-var camShake = 0, camPunch = 0, camD = 14;
-var CAM_EL = 42 * Math.PI / 180;  /* lower angle than top-down: foreshortening sells depth */
-var camT = new THREE.Vector3(0, 0, -0.2), _camV = new THREE.Vector3();
+/* ---------- viewport + camera rig ----------
+   Close play, wide world (vision §9): the camera frames the live pot
+   cluster, not the arena; the world lives in the backdrop. A user
+   gesture layer (pinch dolly / twist yaw / drag pan) composes on top
+   of the cinematic sway/follow/punch/shake. Pitch is clamped. */
+var camShake = 0, camPunch = 0, camBaseD = 14;
+var CAM_EL = 36 * Math.PI / 180;
+var camT = new THREE.Vector3(0, 0, 0), _camV = new THREE.Vector3();
+var camAspect = { vHalf: 0.48, hHalf: 0.24 };
+var uYaw = 0, uZoom = 1, uPanX = 0, uPanZ = 0;   /* the user layer */
+var camHoming = false, rivalHomeAt = 0;
 function sizeNow(){
   var w = el('gl').clientWidth || window.innerWidth;
   var h = el('gl').clientHeight || window.innerHeight;
@@ -707,22 +714,34 @@ function sizeNow(){
   fitCamera();
 }
 function fitCamera(){
-  var vHalf = camera.fov * Math.PI / 360;
-  var hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
-  var need = TUNE.ARENA_R + 1.35;
-  camD = clamp(need / Math.tan(Math.min(vHalf, hHalf)), 9, 38);
-  placeCamera(0);
+  camAspect.vHalf = camera.fov * Math.PI / 360;
+  camAspect.hHalf = Math.atan(Math.tan(camAspect.vHalf) * camera.aspect);
+}
+/* the live cluster: every uncaptured chip, the slammer, the toss coin */
+function clusterFit(){
+  var pts = [];
+  if (M) M.pot.forEach(function(t){ if (!t.captured) pts.push(t.mesh.position); });
+  if (slammer) pts.push(slammer.mesh.position);
+  if (coin) pts.push(coin.mesh.position);
+  if (!pts.length) return { x: 0, z: 0, r: 4.2 };
+  var cx = 0, cz = 0;
+  pts.forEach(function(p){ cx += p.x; cz += p.z; });
+  cx /= pts.length; cz /= pts.length;
+  var r = 1.6;
+  pts.forEach(function(p){ r = Math.max(r, hdist(p.x, p.z, cx, cz) + 1.1); });
+  return { x: cx, z: cz, r: Math.min(r, 4.8) };
 }
 function placeCamera(tms){
-  var az = Math.sin(tms * 0.00022) * 0.06; /* idle sway: parallax is the 3D cue */
-  var d = camD - camPunch;
+  var az = Math.sin(tms * 0.00022) * 0.05 + uYaw;
+  var d = camBaseD * uZoom - camPunch;
+  var tx = camT.x + uPanX, tz = camT.z + uPanZ;
   camera.position.set(
-    camT.x + d * Math.cos(CAM_EL) * Math.sin(az),
+    tx + d * Math.cos(CAM_EL) * Math.sin(az),
     d * Math.sin(CAM_EL),
-    camT.z + d * Math.cos(CAM_EL) * Math.cos(az));
+    tz + d * Math.cos(CAM_EL) * Math.cos(az));
   camera.position.x += rnd(-camShake, camShake) * 0.35;
   camera.position.y += rnd(-camShake, camShake) * 0.35;
-  camera.lookAt(camT.x, 0, camT.z);
+  camera.lookAt(tx, 0.15, tz);
 }
 var rszTimer = null;
 window.addEventListener('resize', function(){
@@ -1019,6 +1038,137 @@ function makeBust(r){
   return g;
 }
 
+/* ================================================================
+   VENUE — THE DRIVEWAY (the first venue, built to the corner-store
+   standard). Surface: the chalk court on the asphalt. Midground:
+   picket venueFence, parked car, sprinkler. Backdrop: the cul-de-sac at
+   dusk, painted onto two billboard cylinders (2 draw calls, parallax
+   from real depth, no fog — CLAUDE.md budget holds).
+   Signature: THE DOG behind the venueFence — barks at whoopees.
+   ================================================================ */
+function venuePanoTex(w, h, paint){
+  var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  paint(cv.getContext('2d'), w, h);
+  var t = new THREE.CanvasTexture(cv);
+  t.minFilter = THREE.LinearFilter; t.generateMipmaps = false;
+  t.wrapS = THREE.RepeatWrapping;
+  return t;
+}
+/* the ground beyond the court — unlit near-black so the world has a floor */
+var venueGround = new THREE.Mesh(
+  new THREE.CircleGeometry(45, 24),
+  new THREE.MeshBasicMaterial({ color: 0x0a0712 }));
+venueGround.rotation.x = -Math.PI / 2;
+venueGround.position.y = -0.02;
+scene.add(venueGround);
+
+/* far ring: dusk sky, stars, distant rooftops */
+var skyRing = new THREE.Mesh(
+  new THREE.CylinderGeometry(58, 58, 34, 24, 1, true),
+  new THREE.MeshBasicMaterial({ side: THREE.BackSide, map: venuePanoTex(1024, 256, function(c, w, h){
+    var g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#05040a'); g.addColorStop(0.55, '#131024');
+    g.addColorStop(0.78, '#2a1836'); g.addColorStop(0.9, '#3d1f2e'); g.addColorStop(1, '#0d0a15');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    for (var i = 0; i < 90; i++){
+      c.fillStyle = 'rgba(255,255,255,' + rnd(0.06, 0.4).toFixed(2) + ')';
+      c.fillRect(rnd(0, w), rnd(0, h * 0.5), 1.5, 1.5);
+    }
+    /* distant rooftop silhouettes, pre-darkened into the sky */
+    c.fillStyle = '#0a0712';
+    var x = 0;
+    while (x < w){
+      var bw = rnd(30, 90), bh = rnd(12, 40);
+      c.fillRect(x, h - bh, bw + 1, bh);
+      x += bw;
+    }
+  }) }));
+skyRing.position.y = 12;
+scene.add(skyRing);
+
+/* near ring: the cul-de-sac — houses with lit windows, trees */
+var houseRing = new THREE.Mesh(
+  new THREE.CylinderGeometry(26, 26, 15, 24, 1, true),
+  new THREE.MeshBasicMaterial({ side: THREE.BackSide, transparent: true, depthWrite: false,
+    map: venuePanoTex(1024, 256, function(c, w, h){
+    /* transparent above; houses along the bottom */
+    var x = 0;
+    while (x < w){
+      var hw = rnd(70, 130), hh = rnd(60, 100), gap = rnd(18, 60);
+      var hx = x, hy = h - hh;
+      c.fillStyle = '#151021';
+      c.fillRect(hx, hy, hw, hh);
+      /* roof */
+      c.beginPath();
+      c.moveTo(hx - 6, hy); c.lineTo(hx + hw / 2, hy - rnd(18, 30)); c.lineTo(hx + hw + 6, hy);
+      c.closePath(); c.fillStyle = '#100c19'; c.fill();
+      /* lit windows */
+      var rows = 2, cols = Math.max(2, Math.floor(hw / 34));
+      for (var r = 0; r < rows; r++) for (var k = 0; k < cols; k++){
+        if (Math.random() < 0.45) continue;
+        c.fillStyle = Math.random() < 0.8 ? 'rgba(255,180,92,0.9)' : 'rgba(160,220,255,0.75)';
+        c.fillRect(hx + 8 + k * (hw - 16) / cols, hy + 12 + r * (hh - 24) / rows, 10, 13);
+      }
+      x += hw + gap;
+      /* a tree in some gaps */
+      if (gap > 34 && Math.random() < 0.7){
+        c.fillStyle = '#0c0a14';
+        c.beginPath(); c.arc(x - gap / 2, h - rnd(50, 70), rnd(20, 30), 0, 6.3); c.fill();
+        c.fillRect(x - gap / 2 - 3, h - 40, 6, 40);
+      }
+    }
+  }) }));
+houseRing.position.y = 5.2;
+scene.add(houseRing);
+
+/* picket venueFence: one baked plane behind the rival's side */
+var venueFence = new THREE.Mesh(
+  new THREE.PlaneGeometry(19, 1.5),
+  new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false,
+    map: venuePanoTex(512, 40, function(c, w, h){
+    for (var x = 0; x < w; x += 14){
+      c.fillStyle = '#241b2e';
+      c.fillRect(x, 6, 9, h - 6);
+      c.beginPath(); c.moveTo(x, 8); c.lineTo(x + 4.5, 0); c.lineTo(x + 9, 8); c.closePath(); c.fill();
+    }
+    c.fillStyle = '#1c1526';
+    c.fillRect(0, 12, w, 4); c.fillRect(0, 26, w, 4);
+  }) }));
+venueFence.position.set(0, 0.72, -7.6);
+scene.add(venueFence);
+
+/* the parked car (low-poly, cheap) */
+prop(new THREE.BoxGeometry(2.6, 0.55, 1.1), 0x1b2735, -6.8, 0.34, -3.4, 0.35);
+prop(new THREE.BoxGeometry(1.4, 0.45, 1.0), 0x141c28, -6.9, 0.82, -3.4, 0.35);
+
+/* the sprinkler (ticks quietly while you line up a shot) */
+prop(new THREE.CylinderGeometry(0.07, 0.09, 0.22, 8), 0x2a3440, 5.4, 0.11, 2.6);
+
+/* THE DOG — behind the venueFence, loses its mind at whoopees */
+var venueDog = new THREE.Group();
+(function(){
+  function dpart(w, h, d, x, y, z){
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshBasicMaterial({ color: 0x17121f }));
+    m.position.set(x, y, z);
+    venueDog.add(m);
+  }
+  dpart(0.55, 0.3, 0.24, 0, 0.44, 0);       /* body */
+  dpart(0.26, 0.26, 0.22, 0.34, 0.62, 0);    /* head */
+  dpart(0.1, 0.14, 0.08, 0.42, 0.82, 0);     /* ear */
+  dpart(0.06, 0.22, 0.06, -0.32, 0.6, 0);    /* tail */
+})();
+venueDog.position.set(2.6, 0, -7.95);
+scene.add(venueDog);
+var dogBarkT = 0;
+function venueDogBark(){
+  dogBarkT = 1;
+  sfxDog();
+}
+function sfxDog(){
+  tone(700, 0.08, 'square', 0.09, 420);
+  setTimeout(function(){ tone(760, 0.09, 'square', 0.09, 430); }, 170);
+}
 /* ================================================================
    RUN + MATCH STATE
    ================================================================ */
@@ -1416,6 +1566,7 @@ function beginTurn(side){
     if (AUTO) setTimeout(autoPlayerSlam, 250);
   } else {
     mode = 'rival';
+    rivalHomeAt = performance.now() + 4000;   /* auto-home the camera */
     el('turntext').textContent = M.rival.name + "'S TURN" + bellNote;
     el('hint').style.visibility = 'hidden';
     banner(M.rival.name + "'S TURN");
@@ -2038,6 +2189,7 @@ function captureTazo(t, side, chainQ){
       if (!M){ return; }
       popupAt3D(pos, 'PBBBBT!!', '#ff8fc7');
       sfxBoom();
+      venueDogBark();   /* the dog loses its mind */
       camShake = 0.5;
       M.pot.forEach(function(o){
         if (o.captured) return;
@@ -2288,9 +2440,45 @@ function resetThrow(){
   el('powwrap').style.visibility = 'hidden';
   el('powfill').classList.remove('grip');
 }
+/* ---------- two-finger camera: pinch dolly, twist yaw, drag pan ----------
+   Composed as a user offset layer over the cinematic rig. A second
+   pointer landing kills any in-progress throw phase. */
+var camPtrs = {}, camPtrN = 0, gPrev = null, gestureUntil = 0, lastTapT = 0;
+function ptrXY(ev){ return { x: ev.clientX, y: ev.clientY }; }
+function gPair(){
+  var ids = Object.keys(camPtrs);
+  if (ids.length < 2) return null;
+  var a = camPtrs[ids[0]], b = camPtrs[ids[1]];
+  return {
+    d: Math.max(20, Math.hypot(b.x - a.x, b.y - a.y)),
+    ang: Math.atan2(b.y - a.y, b.x - a.x),
+    cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2
+  };
+}
 el('gl').addEventListener('pointerdown', function(ev){
   audioInit();
+  camPtrs[ev.pointerId] = ptrXY(ev);
+  camPtrN = Object.keys(camPtrs).length;
+  if (camPtrN === 2){
+    /* camera mode: cancel any in-progress throw input */
+    if (mode === 'tilt' || mode === 'aimloc' || mode === 'power'){
+      resetThrow();
+      mode = 'idle';
+      setHint('TILT — drag to tip the slammer · tap = flat');
+      reticle.visible = false;
+    }
+    gPrev = gPair();
+    gestureUntil = performance.now() + 300;
+    return;
+  }
+  /* double-tap = snap the camera home (outside your throw phases) */
+  var now = performance.now();
+  if (now - lastTapT < 300 && (!M || M.turn !== 'you' || mode === 'sim' || mode === 'drop')){
+    camHoming = true;
+  }
+  lastTapT = now;
   if (!M || M.turn !== 'you') return;
+  if (now < gestureUntil) return;
   var p = pointerToGround(ev);
   if (!p) return;
   if (mode === 'idle'){
@@ -2310,6 +2498,25 @@ el('gl').addEventListener('pointerdown', function(ev){
   }
 });
 el('gl').addEventListener('pointermove', function(ev){
+  if (camPtrs[ev.pointerId]) camPtrs[ev.pointerId] = ptrXY(ev);
+  if (camPtrN >= 2){
+    var g = gPair();
+    if (g && gPrev){
+      gestureUntil = performance.now() + 300;
+      uZoom = clamp(uZoom * gPrev.d / g.d, 0.55, 1.65);
+      uYaw += g.ang - gPrev.ang;
+      /* pan in camera-relative world space */
+      var az = uYaw, s = camBaseD * uZoom * 0.0016;
+      var dcx = g.cx - gPrev.cx, dcy = g.cy - gPrev.cy;
+      uPanX += (-dcx * Math.cos(az) - dcy * Math.sin(az)) * s;
+      uPanZ += (dcx * Math.sin(az) - dcy * Math.cos(az)) * s;
+      var pl = Math.hypot(uPanX, uPanZ);
+      if (pl > 2.4){ uPanX *= 2.4 / pl; uPanZ *= 2.4 / pl; }
+      camHoming = false;
+    }
+    gPrev = g;
+    return;
+  }
   if (mode !== 'tilt' && mode !== 'aimloc') return;
   var p = pointerToGround(ev);
   if (!p) return;
@@ -2326,7 +2533,15 @@ el('gl').addEventListener('pointermove', function(ev){
     aimPos.x = p.x; aimPos.z = p.z;
   }
 });
-window.addEventListener('pointerup', function(){
+function dropPtr(ev){
+  delete camPtrs[ev.pointerId];
+  camPtrN = Object.keys(camPtrs).length;
+  if (camPtrN < 2) gPrev = null;
+}
+window.addEventListener('pointercancel', dropPtr);
+window.addEventListener('pointerup', function(ev){
+  dropPtr(ev);
+  if (performance.now() < gestureUntil) return;
   if (!M || M.turn !== 'you') return;
   if (mode === 'tilt'){
     if (throwAtt.tilt < 0.08) throwAtt.tilt = 0;
@@ -2438,7 +2653,7 @@ window.__slamAt = function(x, z, p){ if (M && mode === 'idle' && M.turn === 'you
 /* ================================================================
    MAIN LOOP
    ================================================================ */
-var last = null, frameN = 0;
+var last = null, frameN = 0, sprinkT = 0;
 function loop(ts){
   nextFrame(loop);
   if (last === null) last = ts;
@@ -2686,13 +2901,45 @@ function loop(ts){
 
   updateEmbers(dt);
 
-  /* camera: follow the slam, punch on impact, sway for parallax */
-  _camV.set(0, 0, -0.2);
-  if (slammer){ _camV.x += slammer.mesh.position.x * 0.22; _camV.z += slammer.mesh.position.z * 0.22; }
-  camT.lerp(_camV, 1 - Math.pow(0.005, rdt));
+  /* camera: frame the live cluster, drift to the aim, follow the slam */
+  var cfit = clusterFit();
+  _camV.set(cfit.x, 0, cfit.z);
+  if ((mode === 'aimloc' || mode === 'power') && throwAtt){
+    _camV.x += (aimPos.x - _camV.x) * 0.35;
+    _camV.z += (aimPos.z - _camV.z) * 0.35;
+  }
+  if (slammer){
+    _camV.x += (slammer.mesh.position.x - _camV.x) * 0.3;
+    _camV.z += (slammer.mesh.position.z - _camV.z) * 0.3;
+  }
+  camT.lerp(_camV, 1 - Math.pow(0.05, rdt));
+  var dTarget = clamp((cfit.r + 0.9) / Math.tan(Math.min(camAspect.vHalf, camAspect.hHalf)), 7, 24);
+  camBaseD += (dTarget - camBaseD) * Math.min(1, rdt * 2.0);
+  /* user-layer homing: double-tap, or 4 s into the rival's turn */
+  if (rivalHomeAt && performance.now() > rivalHomeAt){ camHoming = true; rivalHomeAt = 0; }
+  if (camHoming){
+    var hk = Math.pow(0.03, rdt);
+    uYaw *= hk; uPanX *= hk; uPanZ *= hk;
+    uZoom = 1 + (uZoom - 1) * hk;
+    if (Math.abs(uYaw) < 0.01 && Math.abs(uZoom - 1) < 0.01 &&
+        Math.abs(uPanX) < 0.02 && Math.abs(uPanZ) < 0.02){
+      uYaw = 0; uZoom = 1; uPanX = 0; uPanZ = 0; camHoming = false;
+    }
+  }
   camPunch *= Math.pow(0.04, rdt);
   if (camShake > 0.005) camShake *= Math.pow(0.02, rdt); else camShake = 0;
   placeCamera(ts);
+
+  /* venue life: the dog, the sprinkler */
+  if (dogBarkT > 0){
+    dogBarkT -= rdt * 1.6;
+    venueDog.position.y = Math.max(0, Math.abs(Math.sin(dogBarkT * 12)) * 0.3 * dogBarkT);
+    if (dogBarkT <= 0) venueDog.position.y = 0;
+  }
+  if (!AUTO && mode === 'idle' && M){
+    sprinkT = (sprinkT || 0) + rdt;
+    if (sprinkT > 0.65){ sprinkT = 0; tone(1450, 0.02, 'square', 0.012); }
+  }
 
   if (!AUTO || frameN % 20 === 0) renderer.render(scene, camera);
 }

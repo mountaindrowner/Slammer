@@ -1,7 +1,7 @@
 /* ================================================================
    MAIN LOOP
    ================================================================ */
-var last = null, frameN = 0;
+var last = null, frameN = 0, sprinkT = 0;
 function loop(ts){
   nextFrame(loop);
   if (last === null) last = ts;
@@ -249,13 +249,45 @@ function loop(ts){
 
   updateEmbers(dt);
 
-  /* camera: follow the slam, punch on impact, sway for parallax */
-  _camV.set(0, 0, -0.2);
-  if (slammer){ _camV.x += slammer.mesh.position.x * 0.22; _camV.z += slammer.mesh.position.z * 0.22; }
-  camT.lerp(_camV, 1 - Math.pow(0.005, rdt));
+  /* camera: frame the live cluster, drift to the aim, follow the slam */
+  var cfit = clusterFit();
+  _camV.set(cfit.x, 0, cfit.z);
+  if ((mode === 'aimloc' || mode === 'power') && throwAtt){
+    _camV.x += (aimPos.x - _camV.x) * 0.35;
+    _camV.z += (aimPos.z - _camV.z) * 0.35;
+  }
+  if (slammer){
+    _camV.x += (slammer.mesh.position.x - _camV.x) * 0.3;
+    _camV.z += (slammer.mesh.position.z - _camV.z) * 0.3;
+  }
+  camT.lerp(_camV, 1 - Math.pow(0.05, rdt));
+  var dTarget = clamp((cfit.r + 0.9) / Math.tan(Math.min(camAspect.vHalf, camAspect.hHalf)), 7, 24);
+  camBaseD += (dTarget - camBaseD) * Math.min(1, rdt * 2.0);
+  /* user-layer homing: double-tap, or 4 s into the rival's turn */
+  if (rivalHomeAt && performance.now() > rivalHomeAt){ camHoming = true; rivalHomeAt = 0; }
+  if (camHoming){
+    var hk = Math.pow(0.03, rdt);
+    uYaw *= hk; uPanX *= hk; uPanZ *= hk;
+    uZoom = 1 + (uZoom - 1) * hk;
+    if (Math.abs(uYaw) < 0.01 && Math.abs(uZoom - 1) < 0.01 &&
+        Math.abs(uPanX) < 0.02 && Math.abs(uPanZ) < 0.02){
+      uYaw = 0; uZoom = 1; uPanX = 0; uPanZ = 0; camHoming = false;
+    }
+  }
   camPunch *= Math.pow(0.04, rdt);
   if (camShake > 0.005) camShake *= Math.pow(0.02, rdt); else camShake = 0;
   placeCamera(ts);
+
+  /* venue life: the dog, the sprinkler */
+  if (dogBarkT > 0){
+    dogBarkT -= rdt * 1.6;
+    venueDog.position.y = Math.max(0, Math.abs(Math.sin(dogBarkT * 12)) * 0.3 * dogBarkT);
+    if (dogBarkT <= 0) venueDog.position.y = 0;
+  }
+  if (!AUTO && mode === 'idle' && M){
+    sprinkT = (sprinkT || 0) + rdt;
+    if (sprinkT > 0.65){ sprinkT = 0; tone(1450, 0.02, 'square', 0.012); }
+  }
 
   if (!AUTO || frameN % 20 === 0) renderer.render(scene, camera);
 }

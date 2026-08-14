@@ -109,27 +109,31 @@ severity (wipe vs protected page).
   throws drop hot, perfect releases (PERFECT_WIN) burn up with flame trail, embers, WHITE
   HOT!! and an ember detonation on impact.
 
-## Step 4 — Camera + first venue (the driveway)  `[ ]`
-*Vision §9. Prove the venue budget on ONE venue before content scales.*
+## Step 4 — Camera + first venue (the driveway)  `[x]` (v0.11.0)
+*Vision §9. Venue budget proven on ONE venue.*
 
-- [ ] Pot-cluster framing: fit radius from live cluster bounds (~3.5–4.5 u), elevation
-      ~35–38°, aim-drift toward reticle, arena ring allowed off-frame.
-- [ ] Two-finger gestures: pinch dolly (2.5–6), twist yaw, drag pan (clamped), double-tap
-      home + auto-home ~4 s into rival turn. User offset layer composed over sway/follow/
-      punch; pitch clamped; second pointer kills in-progress aim; inertia with fast damping.
-- [ ] Backdrop pipeline: 2–3 baked billboard canvas planes (15/30/60 u) with parallax from
-      camera sway, pre-darkened into the sky color (no fog). ≤4 draw calls. CSS sky stays.
-- [ ] Driveway venue to the corner-store standard: surface (chalk on driveway asphalt),
-      midground (sprinkler ticking, fence, parked car), backdrop (cul-de-sac at golden hour),
-      signature (dog behind the fence — barks at whoopees).
-- Touches: `fitCamera`/`placeCamera`, pointer handlers, scene setup, a new `VENUES` registry
-  keyed by rival.
-- Done when: chips read as printed objects at gameplay zoom (the rim/finish art budget is
-  finally visible), orbiting the table shows a place, and frame time holds on the webview
-  budget (`setPixelRatio(1)` etc. — CLAUDE.md rules hold).
+- [x] Pot-cluster framing: `clusterFit()` frames the live cluster (chips + slammer + toss
+      coin) each frame, elevation 42°→36°, aim-drift toward the reticle while lining up,
+      slam-follow kept, arena ring runs off-frame. Chip faces readable at gameplay zoom.
+- [x] Two-finger gestures: pinch dolly (×0.55–1.65), twist yaw, drag pan (clamped 2.4 u),
+      composed as a user offset layer over sway/follow/punch/shake; pitch clamped entirely;
+      a second pointer kills any in-progress throw phase; double-tap homes (outside your
+      throw phases); auto-home 4 s into the rival's turn.
+- [x] Backdrop pipeline: two painted billboard *cylinders* (sky ring at 58 u — dusk gradient,
+      stars, rooftop silhouettes; house ring at 26 u — lit windows, trees, transparent above)
+      + unlit ground disc + baked picket-fence plane = 4 draw calls, parallax from real
+      depth, no fog. CSS sky remains as fallback.
+- [x] Driveway venue to the corner-store standard: chalk court surface · fence, parked car,
+      sprinkler (quiet tick while you line up) in the midground · cul-de-sac backdrop ·
+      signature: **THE DOG** behind the fence, barks and jumps at whoopee detonations.
+- Found & fixed: `var fence` collides with Chromium's getter-only `window.fence`
+  (FencedFrame API) — venue globals are `venue*`-prefixed now.
+- Verified: full run, no errors, callouts firing, band 0.32 (soft edge — flag for the
+  phone playtest read).
 
-**PHASE A GATE:** phone playtest of a full match. Judge: throw feel, settle tension, venue
-cost. Only then proceed.
+**PHASE A GATE — OPEN:** the feel lock is built. Phone playtest of a full match judges:
+throw feel (three-phase rhythm, tilt range), settle tension, venue cost/readability, and
+whether 0.32–0.51 capture variance needs tightening. Phase B starts after that read.
 
 ---
 

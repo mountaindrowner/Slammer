@@ -138,6 +138,7 @@ function beginTurn(side){
     if (AUTO) setTimeout(autoPlayerSlam, 250);
   } else {
     mode = 'rival';
+    rivalHomeAt = performance.now() + 4000;   /* auto-home the camera */
     el('turntext').textContent = M.rival.name + "'S TURN" + bellNote;
     el('hint').style.visibility = 'hidden';
     banner(M.rival.name + "'S TURN");
