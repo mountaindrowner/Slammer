@@ -18,6 +18,29 @@ function resolveSettled(){
   }
   maybeEndTurn();
 }
+/* the flub tax: your lowest chip slides into the pot, up for grabs */
+function feedPot(){
+  if (!M || !run.binder.length) return;
+  var wi = 0;
+  run.binder.forEach(function(e, i){ if (rank(e.key) < rank(run.binder[wi].key)) wi = i; });
+  var entry = run.binder.splice(wi, 1)[0];
+  var mesh = makeDisc(entry.key, TUNE.TAZO_R, TUNE.TAZO_H);
+  var a = rnd(0, Math.PI * 2);
+  mesh.position.set(Math.cos(a) * (TUNE.ARENA_R - 0.4), 1.6, Math.sin(a) * (TUNE.ARENA_R - 0.4));
+  mesh.rotation.y = rnd(0, Math.PI * 2);
+  scene.add(mesh);
+  var t = { key: entry.key, design: DESIGNS[entry.key], stakedBy: 'you', entry: entry,
+    finish: entry.finish || null, mesh: mesh,
+    vel: new THREE.Vector3(-Math.cos(a) * 2.2, 0.5, -Math.sin(a) * 2.2),
+    angVel: new THREE.Vector3(rnd(-3, 3), rnd(-3, 3), rnd(-3, 3)),
+    bR: TUNE.TAZO_R, bH: TUNE.TAZO_H,
+    settled: false, settling: null, captured: null, disturbed: false,
+    shadow: makeShadow(TUNE.TAZO_R) };
+  M.pot.push(t);
+  applyFinish(t);
+  popupAt3D(mesh.position, 'FED TO THE POT', '#ff3d5e');
+  tlog('  FLUB fed ' + entry.key);
+}
 /* the drain ate it: nobody's chip now, removed from the run */
 function sinkChip(t){
   t.captured = 'drain';
@@ -258,6 +281,9 @@ function maybeEndTurn(){
     });
     tlog('  ENGINE rebuilt stack n=' + alive().length);
   }
+  /* SECONDS pays: compounded flips earn a kicker, capped per match */
+  if (slamStats && slamStats.seconds && slamStats.side === 'you')
+    M.secondsPay = Math.min(3, (M.secondsPay || 0) + Math.max(0, slamStats.caps - 1));
   /* the table is still — name the technique */
   var co = evalCallout();
   if (co) showCallout(co, M.turn);
@@ -373,6 +399,7 @@ function endMatch(){
   if (res === 'win' && rv === 0 && y > 0) rlines.push(['CLEAN SWEEP', 3]);
   if (res === 'win' && M.anteRankYou < M.anteRankRival) rlines.push(['UNDERDOG', 2]);
   if (M.bellSaved) rlines.push(['BELL SAVE ×' + M.bellSaved, M.bellSaved]);
+  if (M.secondsPay) rlines.push(['SECONDS!', M.secondsPay]);
   if (M.styleBonus) rlines.push(['STYLE', M.styleBonus]);
   var earned = 0;
   rlines.forEach(function(l){ earned += l[1]; });

@@ -43,7 +43,9 @@ step ends with a green harness run (`?auto=1` → `TESTDONE`, captures/slam in 0
 
 Wincons rotate vs map-visible · Blind Bag act-gating · alien chips player-obtainable? ·
 final SANDLOT name · Collection/Binder split legibility · slammer scarcity · run-loss
-severity (wipe vs protected page).
+severity (wipe vs protected page) · SECONDS band drift (harness reads ~0.68 caps/slam with
+the 40% auto spike rate — a real thumb will land lower; retune SEC_POW after phone play) ·
+boss ceilings for humans (PRESIDENT/ENGINE tuned vs the auto player, need a real-hands read).
 
 ---
 
@@ -229,24 +231,47 @@ whether 0.32–0.51 capture variance needs tightening. Phase B starts after that
 > pass: stacks (SANDLOT + CURBSIDE/FIRECRACKER unlocks), Collection (localStorage), 3-lesson
 > played tutorial, menu over the diorama — no cinematic menu-drop yet. Remaining: 9b, 9c.
 
-## Step 9b — Branching Court + act framing  `[ ]`
-- [ ] Map v2: branching node graph (~10–14 nodes/act), legible node types (match/shop/boss/?),
-      route choice as risk trade. Needs the 4th+ rivals to make branches mean something.
-- [ ] Run summary screen: route taken, auto-named build, chips lost, the turn it flipped
-      ("HE TOOK IT 6–5") — the near-miss honesty rule: no rubber-banding anywhere, ever.
-- [ ] Act 1 completed as content: The Principal (confiscation bell — clock rule exists) mid-act,
-      Rich Kid remains act boss.
+## Step 9b — Branching Court + act framing  `[x]` (v0.15.0)
+- [x] COURT replaces NODES: 14 layered stages across 4 acts, fork layers picked on the map
+      (path tracked per run), act headers, future-act rivals shown as `?????`.
+- [x] Run summary screen: auto-named build ("THE PAPERWEIGHT MOB" etc.), route beaten,
+      stats, final margin ("HE TOOK IT 6–5"). No rubber-banding anywhere, ever.
+- [x] Act 1 complete: MILO → CHEATER (nudge) / TOMBOY (sudden death) fork → store →
+      RICH KID boss. In-run BINDER screen off the map (provenance/finish/wear/sleeves).
+- [x] `?stage=N` debug/harness start (padded binder, $25).
 
-## Step 9c → Act 2 content pass  `[ ]`
-- [ ] Venues per rival to the corner-store standard (arcade champ, mob booth with the swinging
-      lamp + hole-in-table Drain, the Mayor, the Resolute Desk).
-- [ ] THE PRESIDENT boss; field conditions rolled out one per node.
-- [ ] Remaining finishes as bag content across the act (MAGIC MOTION, POP-UP, METAL-via-phys,
-      GLOW, WET INK, X-RAY, INFINITY, MISPRINT).
+## Step 9c → Acts 2–4 content pass  `[x]` (v0.15.0)
+- [x] Full roster: PRINCIPAL (confiscate, short bell) / JOYSTICK (combo) → KNUCKLES
+      (juice + drain + heist) · MAYOR (veto, wind, kotc) → PRESIDENT (executive: rigged
+      toss + shield) · ZIB (beam, low-g) / ZORP (the egg) → OVERLORD (the crown) →
+      THE ENGINE (rigged toss + 0.75 shield + IT REBUILDS THE STACK + ice).
+- [x] 13 parameterized venues to the corner-store standard (`applyVenue`: repainted sky +
+      horizon rings, prop toggles, tinted lamp; the streetlight follows you to space).
+- [x] Fields: tilt, ice, lowg, wind, drain (chips gone from the run). Layouts: multi,
+      scatter, orbit (live carousel), heist guard ring. Wincons: bounty, heist, kotc,
+      sudden, egg. House props (guards, the egg) can't leak into binders.
+- [x] Remaining finishes shipped as bag content: METAL (phys exception), GLOW, MAGIC
+      MOTION, POP-UP, WET INK, X-RAY, INFINITY, MISPRINT. Foil always shines; weird/heavy
+      roll factory accidents.
+- [x] Match-point slow-mo; staggered chain captures; combo/veto/beam/crown/confiscate/
+      juice/nudge/executive rule hooks all pure data keys.
 
-*(Acts 3–4 get their own passes after Act 2 ships: zero-G/orbit layouts, alien binders,
-THE OVERLORD capture-veto, then THE ENGINE multi-phase finale. Not planned in detail here on
-purpose — Act 2 will teach us the real per-act cost.)*
+## Step 10 — SECONDS! (the hook)  `[x]` (v0.16.0)
+*Chosen by a 9-agent design panel (5 designers × 2 proposals → 3 judges → synthesis);
+runner-up on file: THE STANDER (freeze-frame on a chip that lands on its edge).*
+
+- [x] Off the bounce: your slammer rebounds after every slam; tap at the top of the
+      rebound (±0.14 s window, gold ring cue flashes pale when live) and it spikes back
+      down for a second impact at 0.55×, through the same hop machinery + settle rule +
+      capture pipeline. One per throw. Tap early/late = FLUB: the slammer dies and your
+      lowest chip is fed to the pot, up for grabs.
+- [x] WHITE HOT synergy: a perfect release is still burning on the way up — window
+      widens to ±0.2 s, spike hits at 0.75×, flame trail on the descent, STILL HOT!!
+      ember detonation.
+- [x] SECONDS!! callout (rank 6), receipt kicker (+$1 per compounded flip, cap $3),
+      house-rule hook `rival.noseconds` reserved as a data key.
+- Verified: harness spikes ~40% of throws and deliberately flubs some — spikes, STILL
+  HOT, flubs feeding the pot, callout + receipt line all in the log.
 
 ---
 

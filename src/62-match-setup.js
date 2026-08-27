@@ -115,9 +115,12 @@ function startMatch(){
     potRing(bt, 0xf5b93d);
     tlog('  BOUNTY on ' + bt.design.name);
   }
-  /* wincon: egg — mark it */
+  /* wincon: egg — mark it, and it rides on YOUR side of the court */
   if (M.wincon === 'egg') M.pot.forEach(function(t){
-    if (t.key === 'egg'){ t.egg = true; potRing(t, 0x9ade6a); }
+    if (t.key === 'egg'){
+      t.egg = true; potRing(t, 0x9ade6a);
+      t.mesh.position.set(rnd(-0.5, 0.5), TUNE.TAZO_H / 2, rnd(1.4, 1.9));
+    }
   });
   /* field setup: wind direction / the drain */
   if (M.field === 'wind'){
@@ -293,7 +296,7 @@ function beginTurn(side){
     el('turntext').textContent = M.rival.name + "'S TURN" + bellNote;
     el('hint').style.visibility = 'hidden';
     banner(M.rival.name + "'S TURN");
-    var pick = aiPick(M.rival.acc);
+    var pick = aiPick(M.rival.acc, 'rival');
     var pow = rnd(M.rival.powLo, M.rival.powHi);
     rivalPlan = {
       tx: pick.x, tz: pick.z, pow: pow,
@@ -306,8 +309,29 @@ function beginTurn(side){
   }
 }
 
-function aiPick(acc){
+function aiPick(acc, side){
   var alive = M.pot.filter(function(t){ return !t.captured; });
+  /* the egg match: he hunts it; a smart player works around it */
+  if (M.wincon === 'egg'){
+    var eggT = null;
+    alive.forEach(function(t){ if (t.egg) eggT = t; });
+    if (eggT && side === 'rival'){
+      var es = (1 - acc) * 1.9;
+      return {
+        x: clamp(eggT.mesh.position.x + rnd(-es, es), -TUNE.ARENA_R + 0.6, TUNE.ARENA_R - 0.6),
+        z: clamp(eggT.mesh.position.z + rnd(-es, es), -TUNE.ARENA_R + 0.6, TUNE.ARENA_R - 0.6)
+      };
+    }
+    if (eggT && side === 'you'){
+      var safe = alive.filter(function(t){
+        return !t.egg && hdist(t.mesh.position.x, t.mesh.position.z,
+          eggT.mesh.position.x, eggT.mesh.position.z) > 1.4;
+      });
+      if (safe.length) alive = safe;
+      else alive = alive.filter(function(t){ return !t.egg; }).length
+        ? alive.filter(function(t){ return !t.egg; }) : alive;
+    }
+  }
   var best = alive[0], bs = -1;
   alive.forEach(function(t){
     var s = Math.random() * 0.6;
@@ -347,7 +371,7 @@ function aiAttitude(r, pick){
 function autoPlayerSlam(){
   if (!M || M.turn !== 'you' || mode !== 'idle') return;
   run.slammer = run.pouch[Math.floor(Math.random() * run.pouch.length)];
-  var p = aiPick(0.82);
+  var p = aiPick(0.82, 'you');
   /* harness throw driver: cover the whole input space — flat and edge,
      gripped and sloppy */
   var att = aiAttitude({ throwStyle: { edge: 0.5, grip: 0.55 } }, p);

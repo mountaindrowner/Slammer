@@ -132,22 +132,77 @@ function loop(ts){
       sl.mesh.position.z += sl.hvz * dt;
       var hr = Math.sqrt(sl.mesh.position.x * sl.mesh.position.x + sl.mesh.position.z * sl.mesh.position.z);
       if (hr > TUNE.ARENA_R - 0.7){ sl.hvx *= -1; sl.hvz *= -1; }
+      /* a WHITE HOT spike burns on the way back down too */
+      if (sl.spiked && sl.att && sl.att.perfect){
+        burnFlame.visible = true;
+        burnFlame.position.set(sl.mesh.position.x, sl.mesh.position.y + 0.95, sl.mesh.position.z);
+        burnFlame.rotation.y += rdt * 9;
+        spawnEmber(sl.mesh.position.x, sl.mesh.position.y + 0.3, sl.mesh.position.z, 0.3, 2.5);
+      }
       if (sl.vy < 0){
         var hy = slamRestY(sl);
         if (sl.mesh.position.y <= hy){
           sl.mesh.position.y = hy;
           sfxThud(sl.pow * 0.6);
-          camShake = 0.25;
-          shockwave(sl.mesh.position.x, sl.mesh.position.z, 1.5);
-          slamImpactAt(sl.mesh.position.x, sl.mesh.position.z, sl.pow * 0.8, sl.side, sl.spec, 0.55, sl.att);
+          camShake = sl.spiked ? 0.4 : 0.25;
+          shockwave(sl.mesh.position.x, sl.mesh.position.z, sl.spiked ? 2 : 1.5);
+          slamImpactAt(sl.mesh.position.x, sl.mesh.position.z, sl.pow * 0.8, sl.side, sl.spec,
+            sl.hopMult || 0.55, sl.att);
+          if (sl.spiked){
+            if (slamStats) slamStats.seconds = true;
+            if (sl.att && sl.att.grip){
+              emberBurst(sl.mesh.position.x, sl.mesh.position.y, sl.mesh.position.z,
+                sl.att.perfect ? 40 : 14, sl.att.perfect ? 7 : 4);
+              if (sl.att.perfect){
+                popupAt3D(sl.mesh.position, 'STILL HOT!!', '#ff8a30');
+                sfxSizzle(); lampFlare += 1;
+              }
+            }
+            burnFlame.visible = false;
+            flashImpact(0.5);
+            bustRecoil = 1;
+            sl.spiked = false;
+            sl.hopMult = null;
+            tlog('  seconds impact');
+          } else tlog('  hop impact');
           launchSlammerBody(sl);
-          tlog('  hop impact');
         }
       }
     } else if (sl.phase === 'sim'){
       if (!sl.settled) stepTazo(sl, dt);
       sl.apexY = Math.max(sl.apexY || 0, sl.mesh.position.y);
+      /* SECONDS cue: a gold ring shadows the rebound; it flashes pale
+         when the tap window is live */
+      if (sl.secArmed && !sl.secUsed && !sl.settled && sl.mesh.position.y > 0.45){
+        var stta = sl.vel.y / (TUNE.GRAV * fieldGrav());
+        var swin = (sl.att && sl.att.perfect) ? TUNE.SEC_WIN_HOT : TUNE.SEC_WIN;
+        var slive = Math.abs(stta) <= swin;
+        reticle.visible = true;
+        reticle.position.set(sl.mesh.position.x, 0.03, sl.mesh.position.z);
+        reticle.material.color.set(slive ? 0xfff2c8 : 0xf5b93d);
+        var srs = slive ? 1.2 : 0.85;
+        reticle.scale.set(srs, srs, srs);
+        /* harness driver: spike ~40% of throws, deliberately flub ~5% */
+        if (AUTO){
+          if (sl.autoSec === undefined)
+            sl.autoSec = Math.random() < 0.4 ? 'spike' : (Math.random() < 0.08 ? 'flub' : 'no');
+          if (sl.autoSec === 'spike' && slive) trySeconds();
+          else if (sl.autoSec === 'flub' && stta > swin * 1.6) trySeconds();
+        }
+      } else if (sl.secArmed && sl.settled === false && sl.mesh.position.y <= 0.45 && reticle.visible &&
+                 M.turn === 'you' && mode === 'sim'){
+        reticle.visible = false;
+      }
       if (sl.settled){
+        if (sl.secArmed){ sl.secArmed = false; if (M.turn === 'you' && mode === 'sim') reticle.visible = false; }
+        /* the flub tax: your slammer died on the court — feed the pot */
+        if (sl.flubbed && sl.side === 'you' && !sl.fedPot){
+          sl.fedPot = true;
+          banner('SLAMMER DOWN — FEED THE POT', 1400);
+          bark(M.rival.barks.win);
+          bustBob = 1;
+          feedPot();
+        }
         /* boomerang: rebounded high and came back down on the stack */
         if (slamStats && sl.apexY > 1.7 && M){
           var bnd = 1e9;

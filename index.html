@@ -341,7 +341,7 @@
 /* ================================================================
    SLAMMERS — playing-for-keeps tazo roguelite (proof of concept)
    ================================================================ */
-var VERSION = '0.15.0';
+var VERSION = '0.16.0';
 var AUTO = /[?&]auto=1/.test(location.search);
 
 /* ---------- diagnostics: breadcrumbs, error banner, version ---------- */
@@ -404,6 +404,12 @@ var TUNE = {
   EDGE_T: 1.8,         // flip-torque multiplier in the lane at full edge
   SCATTER: 0.2,        // base aim scatter (world units); grip cuts it, sloppy adds
   SCATTER_SLOPPY: 0.55,// extra scatter when released past the falloff
+  /* --- SECONDS! — tap the top of the rebound to spike a second impact --- */
+  SEC_WIN: 0.14,       // tap window: seconds either side of the rebound apex
+  SEC_WIN_HOT: 0.2,    // a WHITE HOT throw keeps burning — wider window
+  SEC_POW: 0.55,       // second-impact impulse multiplier
+  SEC_POW_HOT: 0.75,   // ...and hotter off a perfect release
+  SEC_SPIKE_VY: 9,     // downward speed of the spiked slammer
   WHOOPEE_MS: 450,     // detonation delay (the beat sells the joke)
   WHOOPEE_R: 1.7,
   MECHA_R: 1.3,
@@ -555,7 +561,8 @@ var DESIGNS = {
           {t:'dot',x:26,y:38,r:4,col:'#f5c542'}, {t:'dot',x:50,y:30,r:4.5,col:'#f5c542'}, {t:'dot',x:74,y:38,r:4,col:'#f5c542'},
           {t:'dot',x:38,y:66,r:3,col:'#c23a56'}, {t:'dot',x:50,y:66,r:3,col:'#3fbfa8'}, {t:'dot',x:62,y:66,r:3,col:'#2b4bd4'},
           {t:'dot',x:50,y:48,r:3.5,col:'#ffe9a0'} ] },
-  egg: { name:'THE EGG', rarity:'rare', effect:null, fxdesc:'do not touch the egg', bg:['#1c2e1a','#0b160a'],
+  egg: { name:'THE EGG', rarity:'rare', effect:null, fxdesc:'do not touch the egg',
+    phys:{ imp:0.85, ang:0.45 }, bg:['#1c2e1a','#0b160a'],
     art:[ {t:'arc',x:50,y:74,r:26,a0:3.34,a1:6.08,w:5,col:'#3a5a30'},
           {t:'ell',x:50,y:50,rx:19,ry:25,col:'#cde8b0'},
           {t:'dot',x:43,y:40,r:2.5,col:'#7da85e'}, {t:'dot',x:57,y:52,r:3,col:'#7da85e'},
@@ -818,7 +825,7 @@ var RIVALS = {
     barks:{ hit:'ZORP ZORP.', ouch:'IMPOSSIBLE. RECALIBRATING.', win:'YOUR CHIPS WILL BE STUDIED.', lose:'THIS PLANET IS DEFECTIVE.',
       rule:'BEAM ACTIVE. NICE TRY, EARTH CHILD.' } },
   zorp: { key:'zorp', venue:'mothership', name:'ZORP', face:'face_zorp', accent:'#9ade6a', turf:'THE MOTHERSHIP RAMP',
-    ante:4, acc:0.7, powLo:0.75, powHi:1.0, slammer:'drill', rule:null, need:null,
+    ante:4, acc:0.62, powLo:0.75, powHi:1.0, slammer:'drill', rule:null, need:null,
     throwStyle:{ edge:0.4, grip:0.35 },
     bust:{ skin:0x9ade6a, cap:0x3a9a4a, jacket:0x3c2c5e, style:'alien' },
     binder:['moonrock','moonrock','saucer','zorbo','gum','manhole','whoopee','skull'],
@@ -897,7 +904,7 @@ var COURT = [
   { act:2, opts:[ { t:'match', r:'mayor', field:'wind', wincon:'kotc', bellMod:0.55 } ] },
   { act:2, opts:[ { t:'store' } ] },
   { act:2, opts:[ { t:'match', r:'president', layout:'multi' } ] },
-  { act:3, opts:[ { t:'match', r:'zib', field:'lowg' }, { t:'match', r:'zorp', wincon:'egg' } ] },
+  { act:3, opts:[ { t:'match', r:'zib', field:'lowg' }, { t:'match', r:'zorp', wincon:'egg', bellMod:0.45 } ] },
   { act:3, opts:[ { t:'store' } ] },
   { act:3, opts:[ { t:'match', r:'overlord', layout:'orbit' } ] },
   { act:3, opts:[ { t:'match', r:'engine', field:'ice', bellMod:0.8 } ] }
@@ -2649,9 +2656,12 @@ function startMatch(){
     potRing(bt, 0xf5b93d);
     tlog('  BOUNTY on ' + bt.design.name);
   }
-  /* wincon: egg — mark it */
+  /* wincon: egg — mark it, and it rides on YOUR side of the court */
   if (M.wincon === 'egg') M.pot.forEach(function(t){
-    if (t.key === 'egg'){ t.egg = true; potRing(t, 0x9ade6a); }
+    if (t.key === 'egg'){
+      t.egg = true; potRing(t, 0x9ade6a);
+      t.mesh.position.set(rnd(-0.5, 0.5), TUNE.TAZO_H / 2, rnd(1.4, 1.9));
+    }
   });
   /* field setup: wind direction / the drain */
   if (M.field === 'wind'){
@@ -2827,7 +2837,7 @@ function beginTurn(side){
     el('turntext').textContent = M.rival.name + "'S TURN" + bellNote;
     el('hint').style.visibility = 'hidden';
     banner(M.rival.name + "'S TURN");
-    var pick = aiPick(M.rival.acc);
+    var pick = aiPick(M.rival.acc, 'rival');
     var pow = rnd(M.rival.powLo, M.rival.powHi);
     rivalPlan = {
       tx: pick.x, tz: pick.z, pow: pow,
@@ -2840,8 +2850,29 @@ function beginTurn(side){
   }
 }
 
-function aiPick(acc){
+function aiPick(acc, side){
   var alive = M.pot.filter(function(t){ return !t.captured; });
+  /* the egg match: he hunts it; a smart player works around it */
+  if (M.wincon === 'egg'){
+    var eggT = null;
+    alive.forEach(function(t){ if (t.egg) eggT = t; });
+    if (eggT && side === 'rival'){
+      var es = (1 - acc) * 1.9;
+      return {
+        x: clamp(eggT.mesh.position.x + rnd(-es, es), -TUNE.ARENA_R + 0.6, TUNE.ARENA_R - 0.6),
+        z: clamp(eggT.mesh.position.z + rnd(-es, es), -TUNE.ARENA_R + 0.6, TUNE.ARENA_R - 0.6)
+      };
+    }
+    if (eggT && side === 'you'){
+      var safe = alive.filter(function(t){
+        return !t.egg && hdist(t.mesh.position.x, t.mesh.position.z,
+          eggT.mesh.position.x, eggT.mesh.position.z) > 1.4;
+      });
+      if (safe.length) alive = safe;
+      else alive = alive.filter(function(t){ return !t.egg; }).length
+        ? alive.filter(function(t){ return !t.egg; }) : alive;
+    }
+  }
   var best = alive[0], bs = -1;
   alive.forEach(function(t){
     var s = Math.random() * 0.6;
@@ -2881,7 +2912,7 @@ function aiAttitude(r, pick){
 function autoPlayerSlam(){
   if (!M || M.turn !== 'you' || mode !== 'idle') return;
   run.slammer = run.pouch[Math.floor(Math.random() * run.pouch.length)];
-  var p = aiPick(0.82);
+  var p = aiPick(0.82, 'you');
   /* harness throw driver: cover the whole input space — flat and edge,
      gripped and sloppy */
   var att = aiAttitude({ throwStyle: { edge: 0.5, grip: 0.55 } }, p);
@@ -3055,11 +3086,61 @@ function slamImpact(){
     launchSlammerBody(s);
   }
 }
+/* ================================================================
+   SECONDS! — the hook. Your slammer rebounds off the slam; tap at the
+   top of the bounce and it spikes back down for a second impact. Tap
+   early or late and you flubbed it: the slammer dies and you feed a
+   chip to the pot. One SECONDS per throw. A WHITE HOT throw is still
+   burning on the way up — wider window, harder spike.
+   House-rule hooks (data keys): rival.noseconds kills the window.
+   ================================================================ */
+function trySeconds(){
+  var s = slammer;
+  if (!s || s.side !== 'you' || !s.secArmed || s.secUsed || s.settled || s.phase !== 'sim') return;
+  if (s.mesh.position.y < 0.45) return;   /* rolling on the ground doesn't count */
+  s.secUsed = true; s.secArmed = false;
+  reticle.visible = false;
+  var win = (s.att && s.att.perfect) ? TUNE.SEC_WIN_HOT : TUNE.SEC_WIN;
+  var tta = s.vel.y / (TUNE.GRAV * fieldGrav());   /* ~seconds to (or since) apex */
+  if (Math.abs(tta) <= win){
+    /* SPIKE — drive it straight back down through the hop machinery */
+    s.spiked = true;
+    s.phase = 'hop';
+    s.vy = -TUNE.SEC_SPIKE_VY;
+    s.hvx = 0; s.hvz = 0;
+    s.hopMult = (s.att && s.att.perfect) ? TUNE.SEC_POW_HOT : TUNE.SEC_POW;
+    s.settling = null;
+    popupAt3D(s.mesh.position, 'SECONDS!!', '#f5b93d');
+    sfxGrip();
+    if (!AUTO){ timeScale = 0.25; tsHold = 0.06; }
+    tlog('  SECONDS spike' + (s.att && s.att.perfect ? ' (STILL HOT)' : ''));
+  } else {
+    /* FLUB — slapped it out of the air. it dies, and the pot gets fed */
+    s.flubbed = true;
+    s.vel.x *= 0.25; s.vel.z *= 0.25;
+    s.vel.y = Math.min(s.vel.y, -2.5);
+    s.angVel.multiplyScalar(0.4);
+    popupAt3D(s.mesh.position, 'FLUBBED!', '#ff3d5e');
+    sfxTick(0.08);
+    tlog('  SECONDS flub');
+  }
+}
 /* the settle rule: the slammer is a citizen of the sim — after impact it
    rebounds, tumbles, and settles under the same physics as the chips */
 function launchSlammerBody(s){
   s.hopping = false;
   s.phase = 'sim';
+  /* arm the SECONDS window on your own rebound */
+  if (s.side === 'you' && !s.secUsed && M && !M.rival.noseconds && tutStep >= 3){
+    s.secArmed = true;
+    if (!AUTO){
+      setHint('SECONDS — tap at the top of the bounce!');
+      if (run && !run.secTaught){
+        run.secTaught = true;
+        banner('SECONDS! TAP THE TOP OF THE BOUNCE', 1500);
+      }
+    }
+  }
   /* an edge-first slam drives through: the slammer carries forward momentum
      and rolls; a flat slam rebounds straight up */
   var att = s.att || {}, tilt = att.tilt || 0;
@@ -3401,9 +3482,10 @@ var CALLOUTS = [
   { key: 'THE GOOGLIE',  rank: 3, test: function(s){ return s.spinFlip && s.caps >= 1; } },
   { key: "RAZOR'S EDGE", rank: 4, test: function(s){ return s.att && s.att.tilt >= 0.85 && s.caps >= 1; } },
   { key: 'KINI KUNG FU', rank: 5, test: function(s){ return s.att && s.att.grip && s.pow >= 0.96; } },
-  { key: 'BOOMERANG',    rank: 6, test: function(s){ return s.boomerang; } },
-  { key: 'THE THWACK',   rank: 7, test: function(s){ return s.att && s.att.grip && s.caps >= 3; } },
-  { key: 'FLIPZILLA',    rank: 8, test: function(s){ return s.caps >= 6; } }
+  { key: 'SECONDS!!',    rank: 6, test: function(s){ return s.seconds && s.caps >= 2; } },
+  { key: 'BOOMERANG',    rank: 7, test: function(s){ return s.boomerang; } },
+  { key: 'THE THWACK',   rank: 8, test: function(s){ return s.att && s.att.grip && s.caps >= 3; } },
+  { key: 'FLIPZILLA',    rank: 9, test: function(s){ return s.caps >= 6; } }
 ];
 function evalCallout(){
   if (!slamStats) return null;
@@ -3447,6 +3529,29 @@ function resolveSettled(){
     captureTazo(t, M.turn, q);
   }
   maybeEndTurn();
+}
+/* the flub tax: your lowest chip slides into the pot, up for grabs */
+function feedPot(){
+  if (!M || !run.binder.length) return;
+  var wi = 0;
+  run.binder.forEach(function(e, i){ if (rank(e.key) < rank(run.binder[wi].key)) wi = i; });
+  var entry = run.binder.splice(wi, 1)[0];
+  var mesh = makeDisc(entry.key, TUNE.TAZO_R, TUNE.TAZO_H);
+  var a = rnd(0, Math.PI * 2);
+  mesh.position.set(Math.cos(a) * (TUNE.ARENA_R - 0.4), 1.6, Math.sin(a) * (TUNE.ARENA_R - 0.4));
+  mesh.rotation.y = rnd(0, Math.PI * 2);
+  scene.add(mesh);
+  var t = { key: entry.key, design: DESIGNS[entry.key], stakedBy: 'you', entry: entry,
+    finish: entry.finish || null, mesh: mesh,
+    vel: new THREE.Vector3(-Math.cos(a) * 2.2, 0.5, -Math.sin(a) * 2.2),
+    angVel: new THREE.Vector3(rnd(-3, 3), rnd(-3, 3), rnd(-3, 3)),
+    bR: TUNE.TAZO_R, bH: TUNE.TAZO_H,
+    settled: false, settling: null, captured: null, disturbed: false,
+    shadow: makeShadow(TUNE.TAZO_R) };
+  M.pot.push(t);
+  applyFinish(t);
+  popupAt3D(mesh.position, 'FED TO THE POT', '#ff3d5e');
+  tlog('  FLUB fed ' + entry.key);
 }
 /* the drain ate it: nobody's chip now, removed from the run */
 function sinkChip(t){
@@ -3688,6 +3793,9 @@ function maybeEndTurn(){
     });
     tlog('  ENGINE rebuilt stack n=' + alive().length);
   }
+  /* SECONDS pays: compounded flips earn a kicker, capped per match */
+  if (slamStats && slamStats.seconds && slamStats.side === 'you')
+    M.secondsPay = Math.min(3, (M.secondsPay || 0) + Math.max(0, slamStats.caps - 1));
   /* the table is still — name the technique */
   var co = evalCallout();
   if (co) showCallout(co, M.turn);
@@ -3803,6 +3911,7 @@ function endMatch(){
   if (res === 'win' && rv === 0 && y > 0) rlines.push(['CLEAN SWEEP', 3]);
   if (res === 'win' && M.anteRankYou < M.anteRankRival) rlines.push(['UNDERDOG', 2]);
   if (M.bellSaved) rlines.push(['BELL SAVE ×' + M.bellSaved, M.bellSaved]);
+  if (M.secondsPay) rlines.push(['SECONDS!', M.secondsPay]);
   if (M.styleBonus) rlines.push(['STYLE', M.styleBonus]);
   var earned = 0;
   rlines.forEach(function(l){ earned += l[1]; });
@@ -4024,6 +4133,12 @@ el('gl').addEventListener('pointerdown', function(ev){
   lastTapT = now;
   if (!M || M.turn !== 'you') return;
   if (now < gestureUntil) return;
+  /* SECONDS: during your slammer's rebound, a tap IS the input */
+  if (mode === 'sim' && slammer && slammer.side === 'you' &&
+      slammer.secArmed && !slammer.secUsed){
+    trySeconds();
+    return;
+  }
   var p = pointerToGround(ev);
   if (!p) return;
   if (mode === 'idle'){
@@ -4356,22 +4471,77 @@ function loop(ts){
       sl.mesh.position.z += sl.hvz * dt;
       var hr = Math.sqrt(sl.mesh.position.x * sl.mesh.position.x + sl.mesh.position.z * sl.mesh.position.z);
       if (hr > TUNE.ARENA_R - 0.7){ sl.hvx *= -1; sl.hvz *= -1; }
+      /* a WHITE HOT spike burns on the way back down too */
+      if (sl.spiked && sl.att && sl.att.perfect){
+        burnFlame.visible = true;
+        burnFlame.position.set(sl.mesh.position.x, sl.mesh.position.y + 0.95, sl.mesh.position.z);
+        burnFlame.rotation.y += rdt * 9;
+        spawnEmber(sl.mesh.position.x, sl.mesh.position.y + 0.3, sl.mesh.position.z, 0.3, 2.5);
+      }
       if (sl.vy < 0){
         var hy = slamRestY(sl);
         if (sl.mesh.position.y <= hy){
           sl.mesh.position.y = hy;
           sfxThud(sl.pow * 0.6);
-          camShake = 0.25;
-          shockwave(sl.mesh.position.x, sl.mesh.position.z, 1.5);
-          slamImpactAt(sl.mesh.position.x, sl.mesh.position.z, sl.pow * 0.8, sl.side, sl.spec, 0.55, sl.att);
+          camShake = sl.spiked ? 0.4 : 0.25;
+          shockwave(sl.mesh.position.x, sl.mesh.position.z, sl.spiked ? 2 : 1.5);
+          slamImpactAt(sl.mesh.position.x, sl.mesh.position.z, sl.pow * 0.8, sl.side, sl.spec,
+            sl.hopMult || 0.55, sl.att);
+          if (sl.spiked){
+            if (slamStats) slamStats.seconds = true;
+            if (sl.att && sl.att.grip){
+              emberBurst(sl.mesh.position.x, sl.mesh.position.y, sl.mesh.position.z,
+                sl.att.perfect ? 40 : 14, sl.att.perfect ? 7 : 4);
+              if (sl.att.perfect){
+                popupAt3D(sl.mesh.position, 'STILL HOT!!', '#ff8a30');
+                sfxSizzle(); lampFlare += 1;
+              }
+            }
+            burnFlame.visible = false;
+            flashImpact(0.5);
+            bustRecoil = 1;
+            sl.spiked = false;
+            sl.hopMult = null;
+            tlog('  seconds impact');
+          } else tlog('  hop impact');
           launchSlammerBody(sl);
-          tlog('  hop impact');
         }
       }
     } else if (sl.phase === 'sim'){
       if (!sl.settled) stepTazo(sl, dt);
       sl.apexY = Math.max(sl.apexY || 0, sl.mesh.position.y);
+      /* SECONDS cue: a gold ring shadows the rebound; it flashes pale
+         when the tap window is live */
+      if (sl.secArmed && !sl.secUsed && !sl.settled && sl.mesh.position.y > 0.45){
+        var stta = sl.vel.y / (TUNE.GRAV * fieldGrav());
+        var swin = (sl.att && sl.att.perfect) ? TUNE.SEC_WIN_HOT : TUNE.SEC_WIN;
+        var slive = Math.abs(stta) <= swin;
+        reticle.visible = true;
+        reticle.position.set(sl.mesh.position.x, 0.03, sl.mesh.position.z);
+        reticle.material.color.set(slive ? 0xfff2c8 : 0xf5b93d);
+        var srs = slive ? 1.2 : 0.85;
+        reticle.scale.set(srs, srs, srs);
+        /* harness driver: spike ~40% of throws, deliberately flub ~5% */
+        if (AUTO){
+          if (sl.autoSec === undefined)
+            sl.autoSec = Math.random() < 0.4 ? 'spike' : (Math.random() < 0.08 ? 'flub' : 'no');
+          if (sl.autoSec === 'spike' && slive) trySeconds();
+          else if (sl.autoSec === 'flub' && stta > swin * 1.6) trySeconds();
+        }
+      } else if (sl.secArmed && sl.settled === false && sl.mesh.position.y <= 0.45 && reticle.visible &&
+                 M.turn === 'you' && mode === 'sim'){
+        reticle.visible = false;
+      }
       if (sl.settled){
+        if (sl.secArmed){ sl.secArmed = false; if (M.turn === 'you' && mode === 'sim') reticle.visible = false; }
+        /* the flub tax: your slammer died on the court — feed the pot */
+        if (sl.flubbed && sl.side === 'you' && !sl.fedPot){
+          sl.fedPot = true;
+          banner('SLAMMER DOWN — FEED THE POT', 1400);
+          bark(M.rival.barks.win);
+          bustBob = 1;
+          feedPot();
+        }
         /* boomerang: rebounded high and came back down on the stack */
         if (slamStats && sl.apexY > 1.7 && M){
           var bnd = 1e9;

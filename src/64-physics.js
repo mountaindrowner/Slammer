@@ -164,11 +164,61 @@ function slamImpact(){
     launchSlammerBody(s);
   }
 }
+/* ================================================================
+   SECONDS! — the hook. Your slammer rebounds off the slam; tap at the
+   top of the bounce and it spikes back down for a second impact. Tap
+   early or late and you flubbed it: the slammer dies and you feed a
+   chip to the pot. One SECONDS per throw. A WHITE HOT throw is still
+   burning on the way up — wider window, harder spike.
+   House-rule hooks (data keys): rival.noseconds kills the window.
+   ================================================================ */
+function trySeconds(){
+  var s = slammer;
+  if (!s || s.side !== 'you' || !s.secArmed || s.secUsed || s.settled || s.phase !== 'sim') return;
+  if (s.mesh.position.y < 0.45) return;   /* rolling on the ground doesn't count */
+  s.secUsed = true; s.secArmed = false;
+  reticle.visible = false;
+  var win = (s.att && s.att.perfect) ? TUNE.SEC_WIN_HOT : TUNE.SEC_WIN;
+  var tta = s.vel.y / (TUNE.GRAV * fieldGrav());   /* ~seconds to (or since) apex */
+  if (Math.abs(tta) <= win){
+    /* SPIKE — drive it straight back down through the hop machinery */
+    s.spiked = true;
+    s.phase = 'hop';
+    s.vy = -TUNE.SEC_SPIKE_VY;
+    s.hvx = 0; s.hvz = 0;
+    s.hopMult = (s.att && s.att.perfect) ? TUNE.SEC_POW_HOT : TUNE.SEC_POW;
+    s.settling = null;
+    popupAt3D(s.mesh.position, 'SECONDS!!', '#f5b93d');
+    sfxGrip();
+    if (!AUTO){ timeScale = 0.25; tsHold = 0.06; }
+    tlog('  SECONDS spike' + (s.att && s.att.perfect ? ' (STILL HOT)' : ''));
+  } else {
+    /* FLUB — slapped it out of the air. it dies, and the pot gets fed */
+    s.flubbed = true;
+    s.vel.x *= 0.25; s.vel.z *= 0.25;
+    s.vel.y = Math.min(s.vel.y, -2.5);
+    s.angVel.multiplyScalar(0.4);
+    popupAt3D(s.mesh.position, 'FLUBBED!', '#ff3d5e');
+    sfxTick(0.08);
+    tlog('  SECONDS flub');
+  }
+}
 /* the settle rule: the slammer is a citizen of the sim — after impact it
    rebounds, tumbles, and settles under the same physics as the chips */
 function launchSlammerBody(s){
   s.hopping = false;
   s.phase = 'sim';
+  /* arm the SECONDS window on your own rebound */
+  if (s.side === 'you' && !s.secUsed && M && !M.rival.noseconds && tutStep >= 3){
+    s.secArmed = true;
+    if (!AUTO){
+      setHint('SECONDS — tap at the top of the bounce!');
+      if (run && !run.secTaught){
+        run.secTaught = true;
+        banner('SECONDS! TAP THE TOP OF THE BOUNCE', 1500);
+      }
+    }
+  }
   /* an edge-first slam drives through: the slammer carries forward momentum
      and rolls; a flat slam rebounds straight up */
   var att = s.att || {}, tilt = att.tilt || 0;

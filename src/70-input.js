@@ -84,6 +84,12 @@ el('gl').addEventListener('pointerdown', function(ev){
   lastTapT = now;
   if (!M || M.turn !== 'you') return;
   if (now < gestureUntil) return;
+  /* SECONDS: during your slammer's rebound, a tap IS the input */
+  if (mode === 'sim' && slammer && slammer.side === 'you' &&
+      slammer.secArmed && !slammer.secUsed){
+    trySeconds();
+    return;
+  }
   var p = pointerToGround(ev);
   if (!p) return;
   if (mode === 'idle'){

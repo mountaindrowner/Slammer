@@ -10,9 +10,10 @@ var CALLOUTS = [
   { key: 'THE GOOGLIE',  rank: 3, test: function(s){ return s.spinFlip && s.caps >= 1; } },
   { key: "RAZOR'S EDGE", rank: 4, test: function(s){ return s.att && s.att.tilt >= 0.85 && s.caps >= 1; } },
   { key: 'KINI KUNG FU', rank: 5, test: function(s){ return s.att && s.att.grip && s.pow >= 0.96; } },
-  { key: 'BOOMERANG',    rank: 6, test: function(s){ return s.boomerang; } },
-  { key: 'THE THWACK',   rank: 7, test: function(s){ return s.att && s.att.grip && s.caps >= 3; } },
-  { key: 'FLIPZILLA',    rank: 8, test: function(s){ return s.caps >= 6; } }
+  { key: 'SECONDS!!',    rank: 6, test: function(s){ return s.seconds && s.caps >= 2; } },
+  { key: 'BOOMERANG',    rank: 7, test: function(s){ return s.boomerang; } },
+  { key: 'THE THWACK',   rank: 8, test: function(s){ return s.att && s.att.grip && s.caps >= 3; } },
+  { key: 'FLIPZILLA',    rank: 9, test: function(s){ return s.caps >= 6; } }
 ];
 function evalCallout(){
   if (!slamStats) return null;

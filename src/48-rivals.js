@@ -101,7 +101,7 @@ var RIVALS = {
     barks:{ hit:'ZORP ZORP.', ouch:'IMPOSSIBLE. RECALIBRATING.', win:'YOUR CHIPS WILL BE STUDIED.', lose:'THIS PLANET IS DEFECTIVE.',
       rule:'BEAM ACTIVE. NICE TRY, EARTH CHILD.' } },
   zorp: { key:'zorp', venue:'mothership', name:'ZORP', face:'face_zorp', accent:'#9ade6a', turf:'THE MOTHERSHIP RAMP',
-    ante:4, acc:0.7, powLo:0.75, powHi:1.0, slammer:'drill', rule:null, need:null,
+    ante:4, acc:0.62, powLo:0.75, powHi:1.0, slammer:'drill', rule:null, need:null,
     throwStyle:{ edge:0.4, grip:0.35 },
     bust:{ skin:0x9ade6a, cap:0x3a9a4a, jacket:0x3c2c5e, style:'alien' },
     binder:['moonrock','moonrock','saucer','zorbo','gum','manhole','whoopee','skull'],
@@ -180,7 +180,7 @@ var COURT = [
   { act:2, opts:[ { t:'match', r:'mayor', field:'wind', wincon:'kotc', bellMod:0.55 } ] },
   { act:2, opts:[ { t:'store' } ] },
   { act:2, opts:[ { t:'match', r:'president', layout:'multi' } ] },
-  { act:3, opts:[ { t:'match', r:'zib', field:'lowg' }, { t:'match', r:'zorp', wincon:'egg' } ] },
+  { act:3, opts:[ { t:'match', r:'zib', field:'lowg' }, { t:'match', r:'zorp', wincon:'egg', bellMod:0.45 } ] },
   { act:3, opts:[ { t:'store' } ] },
   { act:3, opts:[ { t:'match', r:'overlord', layout:'orbit' } ] },
   { act:3, opts:[ { t:'match', r:'engine', field:'ice', bellMod:0.8 } ] }

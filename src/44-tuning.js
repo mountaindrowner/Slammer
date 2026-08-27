@@ -37,6 +37,12 @@ var TUNE = {
   EDGE_T: 1.8,         // flip-torque multiplier in the lane at full edge
   SCATTER: 0.2,        // base aim scatter (world units); grip cuts it, sloppy adds
   SCATTER_SLOPPY: 0.55,// extra scatter when released past the falloff
+  /* --- SECONDS! — tap the top of the rebound to spike a second impact --- */
+  SEC_WIN: 0.14,       // tap window: seconds either side of the rebound apex
+  SEC_WIN_HOT: 0.2,    // a WHITE HOT throw keeps burning — wider window
+  SEC_POW: 0.55,       // second-impact impulse multiplier
+  SEC_POW_HOT: 0.75,   // ...and hotter off a perfect release
+  SEC_SPIKE_VY: 9,     // downward speed of the spiked slammer
   WHOOPEE_MS: 450,     // detonation delay (the beat sells the joke)
   WHOOPEE_R: 1.7,
   MECHA_R: 1.3,
