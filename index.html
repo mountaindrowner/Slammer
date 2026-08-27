@@ -105,10 +105,17 @@
   #pouch{display:flex;gap:6px;margin-bottom:6px;pointer-events:auto}
   #pouch img{width:34px;height:34px;border-radius:50%;border:2px solid #4a4058;opacity:.5;cursor:pointer}
   #pouch img.sel{border-color:var(--pop);opacity:1;box-shadow:0 0 8px rgba(245,185,61,.55)}
-  .mapnode{display:flex;justify-content:space-between;align-items:center;font-family:var(--shout);font-size:12px;padding:12px}
+  .mapnode{display:flex;justify-content:space-between;align-items:center;font-family:var(--shout);font-size:12px;padding:10px 12px;gap:6px}
   .mapnode.cur{outline:3px solid var(--pop)}
-  .mapnode .st{font-size:10px;opacity:.7}
+  .mapnode.alt{outline:3px dashed var(--cyan);cursor:pointer}
+  .mapnode .st{font-size:10px;opacity:.7;flex:none}
   .mapnode.cur .st{color:var(--pop);opacity:1}
+  .mapnode span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .maprow{display:flex;gap:8px;width:100%}
+  .maprow .mapnode{flex:1;min-width:0}
+  .actline{font-family:var(--shout);font-size:11px;color:var(--pink);letter-spacing:2px;
+    margin-top:6px;text-shadow:2px 2px 0 #000}
+  #map{justify-content:flex-start;padding-top:16px}
   #powwrap{height:20px;background:#1d1630;border:3px solid #000;border-radius:10px;overflow:hidden;
     box-shadow:3px 3px 0 #000;visibility:hidden;position:relative}
   #powfill{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--pop),var(--pink))}
@@ -242,11 +249,23 @@
 
 <!-- COURT MAP -->
 <div class="screen" id="map">
-  <h2 style="font-size:26px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">THE NEIGHBORHOOD</h2>
+  <h2 style="font-size:26px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">THE COURT</h2>
   <div class="shout" id="mapmoney" style="font-size:13px;color:var(--pop)"></div>
   <div class="say" id="maprumor" style="font-size:11px;color:var(--cyan)"></div>
   <div id="mapnodes" style="display:flex;flex-direction:column;gap:10px;max-width:340px;width:100%"></div>
-  <button id="gobtn">GO</button>
+  <div class="ante-btns">
+    <button class="ghost" id="binderbtn">MY BINDER</button>
+    <button id="gobtn">GO</button>
+  </div>
+</div>
+
+<!-- IN-RUN BINDER -->
+<div class="screen" id="binder">
+  <h2 style="font-size:24px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">THE BINDER</h2>
+  <div class="subtitle" id="bindersub"></div>
+  <div class="binder-grid" id="rbgrid" style="max-height:52vh"></div>
+  <div class="say" id="rbpouch" style="font-size:11px;color:var(--cyan)"></div>
+  <button class="ghost" id="binderback">BACK</button>
 </div>
 
 <!-- CORNER STORE -->
@@ -311,6 +330,8 @@
 <div class="screen" id="runend">
   <h2 id="runendtitle" style="font-size:34px;text-align:center;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000"></h2>
   <div class="subtitle" id="runendsub"></div>
+  <div class="say" id="runendroute" style="font-size:11px;color:var(--pop);text-align:center;max-width:320px"></div>
+  <div class="say" id="runendstats" style="font-size:11px;color:var(--cyan);text-align:center;max-width:320px"></div>
   <div class="resultlist" id="runendbinder"></div>
   <button id="runendbtn">NEW RUN</button>
 </div>
@@ -320,7 +341,7 @@
 /* ================================================================
    SLAMMERS — playing-for-keeps tazo roguelite (proof of concept)
    ================================================================ */
-var VERSION = '0.12.1';
+var VERSION = '0.15.0';
 var AUTO = /[?&]auto=1/.test(location.search);
 
 /* ---------- diagnostics: breadcrumbs, error banner, version ---------- */
@@ -505,6 +526,41 @@ var DESIGNS = {
           {t:'dot',x:34,y:36,r:7,col:'#f06fa8'},
           {t:'ell',x:42,y:44,rx:6,ry:4,rot:0.5,col:'#ffb8d6'},
           {t:'dot',x:66,y:62,r:4,col:'#c2477e'} ] },
+  /* --- act 4 loot: alien bootlegs + the crown + the egg --- */
+  zorbo: { name:'ZORBO', rarity:'common', effect:null, fxdesc:'bootleg smiley from space', bg:['#1e3d2c','#0a1c12'],
+    art:[ {t:'dot',x:50,y:50,r:28,col:'#8fe06a'},
+          {t:'dot',x:38,y:42,r:4.5,col:'#12240e'}, {t:'dot',x:62,y:42,r:4.5,col:'#12240e'},
+          {t:'dot',x:50,y:34,r:4,col:'#12240e'},
+          {t:'arc',x:50,y:52,r:15,a0:0.5,a1:2.64,w:4,col:'#12240e'},
+          {t:'line',x0:50,y0:22,x1:50,y1:12,w:2.5,col:'#8fe06a'}, {t:'dot',x:50,y:10,r:3,col:'#d9ff5e'} ] },
+  saucer: { name:'SAUCER', rarity:'common', effect:null, fxdesc:'they mostly come at recess', bg:['#141c33','#080c1a'],
+    art:[ {t:'ell',x:50,y:52,rx:32,ry:11,col:'#8fa3ba'},
+          {t:'ell',x:50,y:44,rx:16,ry:12,col:'#bcd0e2'},
+          {t:'ell',x:50,y:42,rx:9,ry:6,col:'#2a3d5e'},
+          {t:'dot',x:28,y:52,r:2.5,col:'#ffd23f'}, {t:'dot',x:50,y:57,r:2.5,col:'#ffd23f'}, {t:'dot',x:72,y:52,r:2.5,col:'#ffd23f'},
+          {t:'line',x0:40,y0:64,x1:34,y1:80,w:2,col:'rgba(217,255,94,0.5)'},
+          {t:'line',x0:60,y0:64,x1:66,y1:80,w:2,col:'rgba(217,255,94,0.5)'} ] },
+  moonrock: { name:'MOONROCK', rarity:'rare', effect:null, fxdesc:'space heavyweight — barely budges',
+    phys:{ imp:0.6, ang:0.55 }, bg:['#3c3f4c','#191b22'],
+    art:[ {t:'dot',x:50,y:50,r:29,col:'#6d7280'},
+          {t:'dot',x:38,y:40,r:8,col:'#525663'}, {t:'ring',x:38,y:40,r:8,w:2,col:'#454956'},
+          {t:'dot',x:63,y:56,r:6,col:'#525663'}, {t:'ring',x:63,y:56,r:6,w:1.8,col:'#454956'},
+          {t:'dot',x:50,y:70,r:4,col:'#525663'},
+          {t:'dot',x:60,y:32,r:3,col:'#525663'},
+          {t:'dot',x:30,y:60,r:2.5,col:'#8a8f9e'} ] },
+  crown: { name:'THE CROWN', rarity:'legendary', effect:null, fxdesc:'heavy is the head',
+    phys:{ imp:0.85, ang:0.9 }, bg:['#3c1c4c','#1a0b24'],
+    art:[ {t:'poly',pts:[[26,66],[26,42],[38,54],[50,34],[62,54],[74,42],[74,66]],col:'#f5c542'},
+          {t:'rect',x:26,y:62,w:48,h:8,rr:3,col:'#e0a82c'},
+          {t:'dot',x:26,y:38,r:4,col:'#f5c542'}, {t:'dot',x:50,y:30,r:4.5,col:'#f5c542'}, {t:'dot',x:74,y:38,r:4,col:'#f5c542'},
+          {t:'dot',x:38,y:66,r:3,col:'#c23a56'}, {t:'dot',x:50,y:66,r:3,col:'#3fbfa8'}, {t:'dot',x:62,y:66,r:3,col:'#2b4bd4'},
+          {t:'dot',x:50,y:48,r:3.5,col:'#ffe9a0'} ] },
+  egg: { name:'THE EGG', rarity:'rare', effect:null, fxdesc:'do not touch the egg', bg:['#1c2e1a','#0b160a'],
+    art:[ {t:'arc',x:50,y:74,r:26,a0:3.34,a1:6.08,w:5,col:'#3a5a30'},
+          {t:'ell',x:50,y:50,rx:19,ry:25,col:'#cde8b0'},
+          {t:'dot',x:43,y:40,r:2.5,col:'#7da85e'}, {t:'dot',x:57,y:52,r:3,col:'#7da85e'},
+          {t:'dot',x:47,y:62,r:2,col:'#7da85e'}, {t:'dot',x:55,y:33,r:1.8,col:'#7da85e'},
+          {t:'ell',x:44,y:38,rx:5,ry:8,rot:0.4,col:'rgba(255,255,255,0.35)'} ] },
   /* --- the toss coin --- */
   coin: { name:'THE CALL', rarity:'coin', effect:null, fxdesc:'', bg:['#e8c84a','#9a7a22'],
     art:[ {t:'ring',x:50,y:50,r:30,w:3,col:'#7a5c14'},
@@ -561,36 +617,233 @@ var DESIGNS = {
           {t:'rect',x:33,y:52,w:14,h:9,rr:3,col:'#181420',str:'#c8a838',sw:1.5},
           {t:'rect',x:53,y:52,w:14,h:9,rr:3,col:'#181420',str:'#c8a838',sw:1.5},
           {t:'line',x0:47,y0:55,x1:53,y1:55,w:2,col:'#c8a838'},
-          {t:'arc',x:50,y:68,r:7,a0:3.5,a1:5.9,w:3,col:'#8d4a3a'} ] }
+          {t:'arc',x:50,y:68,r:7,a0:3.5,a1:5.9,w:3,col:'#8d4a3a'} ] },
+  face_tomboy: { name:'TOMBOY', rarity:'face', effect:null, fxdesc:'', bg:['#33261c','#170f0a'],
+    art:[ {t:'ell',x:74,y:56,rx:8,ry:16,rot:0.5,col:'#6e3a1c'},          /* ponytail */
+          {t:'dot',x:50,y:57,r:23,col:'#e8b488'},
+          {t:'wedge',x:50,y:47,r:25,a0:3.1416,a1:6.2832,col:'#d44a2c'},  /* backwards cap */
+          {t:'rect',x:24,y:44,w:24,h:8,rr:4,col:'#a8341c'},
+          {t:'dot',x:42,y:58,r:3.5,col:'#241c14'}, {t:'dot',x:58,y:58,r:3.5,col:'#241c14'},
+          {t:'dot',x:37,y:66,r:1.5,col:'rgba(150,90,50,0.7)'}, {t:'dot',x:44,y:69,r:1.5,col:'rgba(150,90,50,0.7)'},
+          {t:'dot',x:61,y:67,r:1.5,col:'rgba(150,90,50,0.7)'},
+          {t:'arc',x:51,y:64,r:9,a0:0.3,a1:2.6,w:3,col:'#8d4a3a'},
+          {t:'line',x0:34,y0:50,x1:44,y1:52,w:2.5,col:'#a8341c'} ] },
+  face_principal: { name:'THE PRINCIPAL', rarity:'face', effect:null, fxdesc:'', bg:['#2c2820','#14120c'],
+    art:[ {t:'dot',x:50,y:58,r:23,col:'#dfae84'},
+          {t:'wedge',x:50,y:50,r:25,a0:3.5,a1:5.9,col:'#dfae84'},        /* bald dome */
+          {t:'ell',x:29,y:52,rx:5,ry:9,col:'#4a3c30'}, {t:'ell',x:71,y:52,rx:5,ry:9,col:'#4a3c30'},
+          {t:'ring',x:41,y:56,r:7,w:2,col:'#2a2018'}, {t:'ring',x:59,y:56,r:7,w:2,col:'#2a2018'},
+          {t:'line',x0:48,y0:56,x1:52,y1:56,w:2,col:'#2a2018'},
+          {t:'dot',x:41,y:56,r:3,col:'#241c14'}, {t:'dot',x:59,y:56,r:3,col:'#241c14'},
+          {t:'arc',x:50,y:74,r:8,a0:3.6,a1:5.8,w:3,col:'#8d4a3a'},       /* the frown */
+          {t:'rect',x:44,y:84,w:12,h:12,rr:2,col:'#6e2c2c'} ] },
+  face_joystick: { name:'JOYSTICK', rarity:'face', effect:null, fxdesc:'', bg:['#1c1233','#0b081c'],
+    art:[ {t:'dot',x:50,y:58,r:23,col:'#e8c49a'},
+          {t:'wedge',x:50,y:48,r:25,a0:3.1416,a1:6.2832,col:'#b14aed'},
+          {t:'rect',x:24,y:44,w:52,h:7,rr:3,col:'#8a2cc0'},
+          {t:'dot',x:26,y:56,r:7,col:'#2a2038'}, {t:'dot',x:74,y:56,r:7,col:'#2a2038'},  /* headphones */
+          {t:'ring',x:26,y:56,r:7,w:2,col:'#b14aed'}, {t:'ring',x:74,y:56,r:7,w:2,col:'#b14aed'},
+          {t:'dot',x:42,y:57,r:3.5,col:'#241c14'}, {t:'dot',x:58,y:57,r:3.5,col:'#241c14'},
+          {t:'arc',x:50,y:63,r:10,a0:0.4,a1:2.7,w:3.5,col:'#8d4a3a'},    /* huge grin */
+          {t:'dot',x:44,y:69,r:1.6,col:'rgba(177,74,237,0.6)'}, {t:'dot',x:58,y:70,r:1.6,col:'rgba(63,191,168,0.6)'} ] },
+  face_knuckles: { name:'KNUCKLES', rarity:'face', effect:null, fxdesc:'', bg:['#241c14','#100c08'],
+    art:[ {t:'rect',x:28,y:38,w:44,h:44,rr:14,col:'#d8a078'},            /* the jaw */
+          {t:'wedge',x:50,y:44,r:24,a0:3.3,a1:6.1,col:'#1c1826'},        /* fedora brim-shadow */
+          {t:'rect',x:26,y:26,w:48,h:10,rr:4,col:'#1c1826'},
+          {t:'rect',x:32,y:14,w:36,h:14,rr:5,col:'#241c30'},
+          {t:'line',x0:36,y0:52,x1:46,y1:54,w:3,col:'#241c14'},          /* heavy brows */
+          {t:'line',x0:54,y0:54,x1:64,y1:52,w:3,col:'#241c14'},
+          {t:'dot',x:41,y:58,r:2.5,col:'#241c14'}, {t:'dot',x:59,y:58,r:2.5,col:'#241c14'},
+          {t:'line',x0:42,y0:74,x1:58,y1:74,w:3,col:'#6e3a2c'},
+          {t:'dot',x:55,y:76,r:2,col:'#f5c542'},                          /* gold tooth */
+          {t:'dot',x:36,y:68,r:1,col:'#4a3428'}, {t:'dot',x:40,y:71,r:1,col:'#4a3428'},
+          {t:'dot',x:62,y:69,r:1,col:'#4a3428'}, {t:'dot',x:58,y:66,r:1,col:'#4a3428'} ] },
+  face_mayor: { name:'THE MAYOR', rarity:'face', effect:null, fxdesc:'', bg:['#1c2440','#0c1020'],
+    art:[ {t:'dot',x:50,y:58,r:23,col:'#f0be8e'},
+          {t:'wedge',x:50,y:46,r:26,a0:3.1416,a1:6.2832,col:'#9aa4b2'},  /* silver pompadour */
+          {t:'ell',x:50,y:34,rx:16,ry:9,col:'#9aa4b2'},
+          {t:'dot',x:42,y:57,r:3.5,col:'#241c14'}, {t:'dot',x:58,y:57,r:3.5,col:'#241c14'},
+          {t:'arc',x:50,y:63,r:11,a0:0.35,a1:2.8,w:4,col:'#c2726a'},     /* politician grin */
+          {t:'line',x0:39,y0:65,x1:61,y1:65,w:2,col:'#fff'},             /* the teeth */
+          {t:'rect',x:24,y:82,w:52,h:14,rr:4,col:'#3a2c5e'},
+          {t:'poly',pts:[[24,82],[76,96],[76,88],[24,74]],col:'#c0202c'} ] },  /* the sash */
+  face_president: { name:'THE PRESIDENT', rarity:'face', effect:null, fxdesc:'', bg:['#141c30','#080c18'],
+    art:[ {t:'dot',x:50,y:58,r:23,col:'#f0c29a'},
+          {t:'wedge',x:50,y:46,r:26,a0:3.1416,a1:6.2832,col:'#d8d2e0'},  /* silver helmet-hair */
+          {t:'line',x0:36,y0:52,x1:46,y1:54,w:3.5,col:'#8a8494'},        /* stern brows */
+          {t:'line',x0:54,y0:54,x1:64,y1:52,w:3.5,col:'#8a8494'},
+          {t:'dot',x:42,y:59,r:3,col:'#241c14'}, {t:'dot',x:58,y:59,r:3,col:'#241c14'},
+          {t:'line',x0:43,y0:72,x1:57,y1:72,w:3,col:'#8d4a3a'},          /* the line of state */
+          {t:'rect',x:26,y:82,w:48,h:14,rr:4,col:'#1c2a4c'},
+          {t:'poly',pts:[[47,82],[53,82],[51,96],[49,96]],col:'#c0202c'}, /* the tie */
+          {t:'dot',x:33,y:87,r:3,col:'#f5c542'} ] },                      /* the pin */
+  face_zib: { name:'ZIB', rarity:'face', effect:null, fxdesc:'', bg:['#0f2418','#06120a'],
+    art:[ {t:'line',x0:38,y0:26,x1:32,y1:12,w:2,col:'#7ed957'}, {t:'dot',x:32,y:10,r:3,col:'#d9ff5e'},
+          {t:'line',x0:62,y0:26,x1:68,y1:12,w:2,col:'#7ed957'}, {t:'dot',x:68,y:10,r:3,col:'#d9ff5e'},
+          {t:'ell',x:50,y:50,rx:24,ry:29,col:'#7ed957'},
+          {t:'ell',x:40,y:48,rx:8.5,ry:14,rot:0.4,col:'#0a1408'}, {t:'ell',x:60,y:48,rx:8.5,ry:14,rot:-0.4,col:'#0a1408'},
+          {t:'dot',x:43,y:44,r:2.5,col:'rgba(217,255,94,0.8)'}, {t:'dot',x:63,y:44,r:2.5,col:'rgba(217,255,94,0.8)'},
+          {t:'arc',x:50,y:68,r:5,a0:0.6,a1:2.5,w:2,col:'#0a1408'} ] },
+  face_zorp: { name:'ZORP', rarity:'face', effect:null, fxdesc:'', bg:['#122814','#08140a'],
+    art:[ {t:'line',x0:34,y0:24,x1:26,y1:10,w:2.5,col:'#9ade6a'}, {t:'dot',x:26,y:8,r:3.5,col:'#d9ff5e'},
+          {t:'line',x0:50,y0:20,x1:50,y1:6,w:2.5,col:'#9ade6a'}, {t:'dot',x:50,y:5,r:3.5,col:'#d9ff5e'},
+          {t:'line',x0:66,y0:24,x1:74,y1:10,w:2.5,col:'#9ade6a'}, {t:'dot',x:74,y:8,r:3.5,col:'#d9ff5e'},
+          {t:'ell',x:50,y:52,rx:27,ry:28,col:'#9ade6a'},
+          {t:'ell',x:36,y:48,rx:7,ry:10,rot:0.3,col:'#0c1808'},
+          {t:'ell',x:50,y:44,rx:7,ry:11,col:'#0c1808'},
+          {t:'ell',x:64,y:48,rx:7,ry:10,rot:-0.3,col:'#0c1808'},
+          {t:'arc',x:50,y:70,r:8,a0:3.6,a1:5.8,w:2.5,col:'#0c1808'},     /* the frown */
+          {t:'ell',x:78,y:82,rx:9,ry:12,col:'#cde8b0'} ] },               /* the egg, held close */
+  face_overlord: { name:'THE OVERLORD', rarity:'face', effect:null, fxdesc:'', bg:['#241033','#10071a'],
+    art:[ {t:'poly',pts:[[30,30],[30,16],[40,25],[50,10],[60,25],[70,16],[70,30]],col:'#f5c542'},
+          {t:'ell',x:50,y:54,rx:24,ry:27,col:'#9a5ae0'},
+          {t:'ell',x:40,y:50,rx:8,ry:12,rot:0.35,col:'#1a0b24'}, {t:'ell',x:60,y:50,rx:8,ry:12,rot:-0.35,col:'#1a0b24'},
+          {t:'dot',x:41,y:47,r:2.5,col:'#ff4b3d'}, {t:'dot',x:61,y:47,r:2.5,col:'#ff4b3d'},
+          {t:'arc',x:50,y:70,r:7,a0:3.5,a1:5.9,w:2.5,col:'#1a0b24'},
+          {t:'dot',x:30,y:14,r:2.5,col:'#ffe9a0'}, {t:'dot',x:50,y:8,r:3,col:'#ffe9a0'}, {t:'dot',x:70,y:14,r:2.5,col:'#ffe9a0'} ] },
+  face_engine: { name:'THE ENGINE', rarity:'face', effect:null, fxdesc:'', bg:['#1a2028','#0a0e14'],
+    art:[ {t:'line',x0:50,y0:22,x1:50,y1:8,w:2.5,col:'#55677d'}, {t:'dot',x:50,y:7,r:3,col:'#ff4b3d'},
+          {t:'rect',x:26,y:24,w:48,h:52,rr:8,col:'#8fa3ba'},
+          {t:'rect',x:31,y:38,w:38,h:14,rr:4,col:'#160a0e'},
+          {t:'rect',x:34,y:41,w:14,h:8,rr:2,col:'#ff4b3d'},
+          {t:'rect',x:52,y:41,w:14,h:8,rr:2,col:'#ff4b3d'},
+          {t:'rect',x:34,y:60,w:32,h:6,rr:2,col:'#3c4654'},
+          {t:'line',x0:36,y0:63,x1:40,y1:63,w:3,col:'#ff8a30'}, {t:'line',x0:46,y0:63,x1:52,y1:63,w:3,col:'#ff8a30'},
+          {t:'dot',x:31,y:29,r:1.8,col:'#55677d'}, {t:'dot',x:69,y:29,r:1.8,col:'#55677d'},
+          {t:'dot',x:31,y:71,r:1.8,col:'#55677d'}, {t:'dot',x:69,y:71,r:1.8,col:'#55677d'},
+          {t:'line',x0:26,y0:84,x1:74,y1:84,w:3,col:'#3c4654'},
+          {t:'line',x0:30,y0:90,x1:70,y1:90,w:2,col:'rgba(255,75,61,0.5)'} ] }
 };
 
 /* ================================================================
-   RIVALS — the court, in order. Last one owns the court.
+   RIVALS — the whole arc, local to cosmic (vision §1).
+   Every house rule is a data key with defined hooks:
+     rule       -> capture-pipeline / turn hooks (resolved by key)
+     outBoost   -> multiplier on HIS outgoing impulse
+     inShield   -> multiplier on impulse INTO his staked chips
+     tossRig    -> he always wins the coin toss
+     bellMod    -> scales when the bell rings (shorter recess)
+   No special-case logic anywhere else.
    ================================================================ */
-var RIVALS = [
-  { key:'milo', name:'MILO', face:'face_milo', accent:'#8fd97a', turf:'THE SIDEWALK',
+var RIVALS = {
+  /* ---- ACT 1: THE NEIGHBORHOOD ---- */
+  milo: { key:'milo', venue:'driveway', name:'MILO', face:'face_milo', accent:'#8fd97a', turf:'THE SIDEWALK',
     ante:2, acc:0.45, powLo:0.45, powHi:0.75, slammer:'slammy', rule:null, need:null,
     throwStyle:{ edge:0.2, grip:0.12 },
     bust:{ skin:0xf2c99a, cap:0x3fae4e, jacket:0x4e6a3c, style:'cap' },
     binder:['feather','duck','star','skull','rubber','pizza'],
     demand:'"2-for-2. winner keeps \'em. no crying."',
     barks:{ hit:'juice box power!!', ouch:'hey!! that one\'s mine!!', win:'told ya!! TOLD YA!!', lose:'i\'m telling my mom.' } },
-  { key:'cheater', name:'THE CHEATER', face:'face_cheater', accent:'#e0bd63', turf:'THE SCHOOLYARD',
-    ante:3, acc:0.97, powLo:0.5, powHi:0.7, slammer:'drill', rule:null, need:'rare',
+  cheater: { key:'cheater', venue:'schoolyard', name:'THE CHEATER', face:'face_cheater', accent:'#e0bd63', turf:'THE SCHOOLYARD',
+    ante:3, acc:0.97, powLo:0.5, powHi:0.7, slammer:'drill', need:'rare',
+    rule:'nudge', ruleName:'THE NUDGE', ruleDesc:'sometimes the pot scoots after you commit',
     throwStyle:{ edge:0.85, grip:0.65 },
     bust:{ skin:0xe2a875, cap:0x2b4bd4, jacket:0x3a3f52, style:'side' },
     binder:['gum','vhs','double','skull','alien','hypno','star'],
     demand:'"3-for-3, and at least one shiny. trust me."',
-    barks:{ hit:'house always wins.', ouch:'that one didn\'t count.', win:'better luck never.', lose:'this game is RIGGED!!' } },
-  { key:'richkid', name:'THE RICH KID', face:'face_richkid', accent:'#7fd9c0', turf:'THE CUL-DE-SAC',
-    ante:3, acc:0.75, powLo:0.75, powHi:1.0, slammer:'metal', rule:'mint', need:'best',
+    barks:{ hit:'house always wins.', ouch:'that one didn\'t count.', win:'better luck never.', lose:'this game is RIGGED!!',
+      rule:'"what? i didn\'t touch nothin\'."' } },
+  tomboy: { key:'tomboy', venue:'lot', name:'TOMBOY', face:'face_tomboy', accent:'#ff8a5e', turf:'THE VACANT LOT',
+    ante:3, acc:0.62, powLo:0.62, powHi:0.98, slammer:'slammy', rule:null, need:null,
+    throwStyle:{ edge:0.75, grip:0.35 },
+    bust:{ skin:0xe8b488, cap:0xd44a2c, jacket:0x8a4a6e, style:'back' },
+    binder:['star','cat','rubber','skull','duck','feather','pizza'],
+    demand:'"3-for-3. i throw harder than you. that\'s not trash talk, that\'s physics."',
+    barks:{ hit:'EAT DIRT!!', ouch:'lucky bounce. do it again, i dare you.', win:'physics, baby.', lose:'best of... whatever. REMATCH.' } },
+  richkid: { key:'richkid', venue:'culdesac', name:'THE RICH KID', face:'face_richkid', accent:'#7fd9c0', turf:'THE CUL-DE-SAC',
+    ante:3, acc:0.75, powLo:0.75, powHi:1.0, slammer:'metal', need:'best',
+    rule:'mint', ruleName:'MINT CONDITION', ruleDesc:'his tazos resist flips · metal slammer',
+    outBoost:1.35, inShield:0.65,
     throwStyle:{ edge:0.25, grip:0.35 },
-    ruleName:'MINT CONDITION', ruleDesc:'his tazos resist flips · metal slammer',
     bust:{ skin:0xf2c99a, cap:0xe0bd4e, jacket:0x6d2f3c, style:'shades' },
     binder:['mecha','magnet','manhole','duck','vhs','hypno','alien','whoopee'],
     demand:'"3-for-3, and bring your BEST. i only play mint."',
-    barks:{ hit:'daddy can buy more anyway.', ouch:'careful!! that\'s MINT!!', win:'peasant.', lose:'impossible. IMPOSSIBLE.' } }
-];
+    barks:{ hit:'daddy can buy more anyway.', ouch:'careful!! that\'s MINT!!', win:'peasant.', lose:'impossible. IMPOSSIBLE.' } },
+  /* ---- ACT 2: ACROSS TOWN ---- */
+  principal: { key:'principal', venue:'hall', name:'THE PRINCIPAL', face:'face_principal', accent:'#c9a06a', turf:'DETENTION HALL',
+    ante:3, acc:0.8, powLo:0.55, powHi:0.82, slammer:'slammy', need:'rare',
+    rule:'confiscate', ruleName:'CONFISCATED', ruleDesc:'at the bell HE keeps the whole pot · short recess',
+    bellMod:0.6,
+    throwStyle:{ edge:0.3, grip:0.5 },
+    bust:{ skin:0xdfae84, cap:0x4a3c30, jacket:0x4a4034, style:'tie', tie:0x6e2c2c },
+    binder:['vhs','hypno','manhole','skull','gum','double','star'],
+    demand:'"3-for-3. recess is SHORT today. and whatever\'s on my desk at the bell stays on my desk."',
+    barks:{ hit:'detention.', ouch:'that is a write-up, young man.', win:'see me after class.', lose:'this goes on MY permanent record...',
+      rule:'"school property now. all of it."' } },
+  joystick: { key:'joystick', venue:'arcade', name:'JOYSTICK', face:'face_joystick', accent:'#b14aed', turf:'THE ARCADE',
+    ante:3, acc:0.75, powLo:0.6, powHi:0.9, slammer:'bouncer', need:null,
+    rule:'combo', ruleName:'COMBO METER', ruleDesc:'his capture streaks hit harder — break the chain',
+    throwStyle:{ edge:0.5, grip:0.75 },
+    bust:{ skin:0xe8c49a, cap:0xb14aed, jacket:0x24387c, style:'cap' },
+    binder:['mecha','rubber','double','whoopee','hypno','star','pizza'],
+    demand:'"3-for-3. insert chips. the machine ALWAYS gets a combo."',
+    barks:{ hit:'COMBO!!', ouch:'C-C-CHAIN BREAK!!', win:'NEW HIGH SCORE.', lose:'CONTINUE? 10... 9... 8...' } },
+  knuckles: { key:'knuckles', venue:'backroom', name:'KNUCKLES', face:'face_knuckles', accent:'#e0863d', turf:'THE BACKROOM',
+    ante:4, acc:0.7, powLo:0.75, powHi:1.0, slammer:'metal', need:'best',
+    rule:'juice', ruleName:'THE JUICE', ruleDesc:'every chip you flip costs you $1 — house cut',
+    throwStyle:{ edge:0.35, grip:0.4 },
+    bust:{ skin:0xd8a078, cap:0x1c1826, jacket:0x241c28, style:'tie', tie:0x8a6e2c },
+    binder:['manhole','manhole','gum','magnet','skull','mecha','duck','star'],
+    demand:'"4-for-4, and the house takes its juice. nothing personal, kid."',
+    barks:{ hit:'nothing personal.', ouch:'you\'re makin\' a mistake here.', win:'pleasure doin\' business.', lose:'you don\'t walk away from— hey. HEY!',
+      rule:'"house cut. them\'s the rules."' } },
+  /* ---- ACT 3: THE BIG TIME ---- */
+  mayor: { key:'mayor', venue:'cityhall', name:'THE MAYOR', face:'face_mayor', accent:'#7fa8ff', turf:'CITY HALL STEPS',
+    ante:4, acc:0.8, powLo:0.6, powHi:0.85, slammer:'slammy', need:'rare',
+    rule:'veto', ruleName:'THE VETO', ruleDesc:'your first flip each match gets overturned',
+    throwStyle:{ edge:0.4, grip:0.55 },
+    bust:{ skin:0xf0be8e, cap:0x9aa4b2, jacket:0x3a2c5e, style:'tie', tie:0xc0202c },
+    binder:['double','vhs','hypno','magnet','star','manhole','mecha','smiley'],
+    demand:'"4-for-4, and i\'ll need a signature. right here. don\'t read it."',
+    barks:{ hit:'for the CITY!', ouch:'i\'ll form a committee about that.', win:'re-elected!', lose:'i demand a RECOUNT!!',
+      rule:'"vetoed. next item on the agenda."' } },
+  president: { key:'president', venue:'oval', name:'THE PRESIDENT', face:'face_president', accent:'#e0bd4e', turf:'THE OVAL COURT',
+    ante:4, acc:0.86, powLo:0.7, powHi:0.92, slammer:'metal', need:'best',
+    rule:'executive', ruleName:'EXECUTIVE ORDER', ruleDesc:'always slams first · his chips resist flips',
+    tossRig:true, inShield:0.88,
+    throwStyle:{ edge:0.6, grip:0.7 },
+    bust:{ skin:0xf0c29a, cap:0xd8d2e0, jacket:0x1c2a4c, style:'tie', tie:0xc0202c },
+    binder:['mecha','manhole','magnet','double','vhs','star','gum','hypno'],
+    demand:'"4-for-4. i don\'t lose coin tosses. it\'s classified why."',
+    barks:{ hit:'executive action.', ouch:'my lawyers will hear about this.', win:'god bless this court.', lose:'i hereby resign— wait. NO WAIT.',
+      rule:'"executive privilege. look it up."' } },
+  /* ---- ACT 4: THE COSMIC COURT ---- */
+  zib: { key:'zib', venue:'crop', name:'ZIB', face:'face_zib', accent:'#7ed957', turf:'THE CROP CIRCLE',
+    ante:4, acc:0.8, powLo:0.65, powHi:0.9, slammer:'drill', need:null,
+    rule:'beam', ruleName:'TRACTOR BEAM', ruleDesc:'his flipped chips sometimes beam back to the pot',
+    throwStyle:{ edge:0.7, grip:0.5 },
+    bust:{ skin:0x7ed957, cap:0x4ab83a, jacket:0x2c3a6e, style:'alien' },
+    binder:['zorbo','saucer','moonrock','alien','hypno','rubber','feather','star'],
+    demand:'"FOUR OF YOUR EARTH CHIPS. we have studied your customs. prepare to be flipped."',
+    barks:{ hit:'ZORP ZORP.', ouch:'IMPOSSIBLE. RECALIBRATING.', win:'YOUR CHIPS WILL BE STUDIED.', lose:'THIS PLANET IS DEFECTIVE.',
+      rule:'BEAM ACTIVE. NICE TRY, EARTH CHILD.' } },
+  zorp: { key:'zorp', venue:'mothership', name:'ZORP', face:'face_zorp', accent:'#9ade6a', turf:'THE MOTHERSHIP RAMP',
+    ante:4, acc:0.7, powLo:0.75, powHi:1.0, slammer:'drill', rule:null, need:null,
+    throwStyle:{ edge:0.4, grip:0.35 },
+    bust:{ skin:0x9ade6a, cap:0x3a9a4a, jacket:0x3c2c5e, style:'alien' },
+    binder:['moonrock','moonrock','saucer','zorbo','gum','manhole','whoopee','skull'],
+    demand:'"4-for-4. the EGG watches. do not touch the egg. DO NOT."',
+    barks:{ hit:'FOR THE BROOD.', ouch:'THE EGG SAW THAT.', win:'THE BROOD FEASTS.', lose:'THE EGG IS DISAPPOINTED IN US BOTH.' } },
+  overlord: { key:'overlord', venue:'throne', name:'THE OVERLORD', face:'face_overlord', accent:'#f5b93d', turf:'THE THRONE RING',
+    ante:5, acc:0.8, powLo:0.7, powHi:0.92, slammer:'metal', need:'best',
+    rule:'crown', ruleName:'THE CROWN', ruleDesc:'his chips return to the pot until you flip his CROWN',
+    throwStyle:{ edge:0.6, grip:0.6 },
+    bust:{ skin:0x9a5ae0, cap:0xe0bd4e, jacket:0x3c1c4c, style:'alien', crown:true },
+    binder:['crown','mecha','moonrock','saucer','magnet','manhole','zorbo','vhs','double'],
+    demand:'"5-for-5, peasant. the crown does not leave the throne. the crown IS the throne."',
+    barks:{ hit:'KNEEL.', ouch:'...GUARDS?', win:'ALL OF IT WAS ALWAYS MINE.', lose:'a crown... on a CHILD?!',
+      rule:'THE CROWN HOLDS. NOTHING LEAVES.' } },
+  engine: { key:'engine', venue:'machine', name:'THE ENGINE', face:'face_engine', accent:'#ff4b3d', turf:'THE FINAL COURT',
+    ante:5, acc:0.92, powLo:0.8, powHi:1.0, slammer:'metal', need:'best',
+    rule:'engine', ruleName:'PERPETUAL MOTION', ruleDesc:'always slams first · armored chips · IT REBUILDS THE STACK',
+    tossRig:true, inShield:0.75,
+    throwStyle:{ edge:0.75, grip:0.85 },
+    bust:{ skin:0x8fa3ba, cap:0xff4b3d, jacket:0x2c3444, style:'machine' },
+    binder:['mecha','mecha','manhole','magnet','moonrock','saucer','double','gum','star','hypno'],
+    demand:'"FIVE UNITS. THE ENGINE DOES NOT PLAY. THE ENGINE RESOLVES."',
+    barks:{ hit:'RESOLVED.', ouch:'DAMAGE: SUPERFICIAL.', win:'GAME OVER. INSERT CHILDHOOD.', lose:'IMPOSSIBLE. IMPOSSIBLE. IMPOSSIB—',
+      rule:'RESETTING BOARD STATE.' } }
+};
 
 var START_BINDER = ['smiley','pizza','alien','star','skull','cat','hypno','rubber','whoopee','feather'];
 
@@ -630,14 +883,30 @@ var SLAMMERS = {
 var RANK = { common:1, rare:2, legendary:3 };
 function rank(key){ return RANK[DESIGNS[key].rarity] || 0; }
 
-/* ---- the court: run structure ---- */
-var NODES = [
-  { t:'match', r:0 },
-  { t:'match', r:1 },
-  { t:'store' },
-  { t:'match', r:2 }
+/* ---- THE COURT: four acts, layered; a layer with 2 opts is a fork
+   you pick on the map. Node knobs (field/layout/wincon) ride here. ---- */
+var ACTS = ['THE NEIGHBORHOOD', 'ACROSS TOWN', 'THE BIG TIME', 'THE COSMIC COURT'];
+var COURT = [
+  { act:0, opts:[ { t:'match', r:'milo' } ] },
+  { act:0, opts:[ { t:'match', r:'cheater', layout:'scatter' }, { t:'match', r:'tomboy', wincon:'sudden' } ] },
+  { act:0, opts:[ { t:'store' } ] },
+  { act:0, opts:[ { t:'match', r:'richkid', layout:'multi' } ] },
+  { act:1, opts:[ { t:'match', r:'principal' }, { t:'match', r:'joystick', layout:'orbit' } ] },
+  { act:1, opts:[ { t:'store' } ] },
+  { act:1, opts:[ { t:'match', r:'knuckles', field:'drain', wincon:'heist' } ] },
+  { act:2, opts:[ { t:'match', r:'mayor', field:'wind', wincon:'kotc', bellMod:0.55 } ] },
+  { act:2, opts:[ { t:'store' } ] },
+  { act:2, opts:[ { t:'match', r:'president', layout:'multi' } ] },
+  { act:3, opts:[ { t:'match', r:'zib', field:'lowg' }, { t:'match', r:'zorp', wincon:'egg' } ] },
+  { act:3, opts:[ { t:'store' } ] },
+  { act:3, opts:[ { t:'match', r:'overlord', layout:'orbit' } ] },
+  { act:3, opts:[ { t:'match', r:'engine', field:'ice', bellMod:0.8 } ] }
 ];
-
+function stageNode(i){
+  var layer = COURT[i];
+  return layer.opts[Math.min((run && run.path[i]) || 0, layer.opts.length - 1)];
+}
+function curNode(){ return stageNode(run.stage); }
 /* ================================================================
    HELPERS
    ================================================================ */
@@ -739,17 +1008,20 @@ var curb = new THREE.Mesh(
   new THREE.MeshLambertMaterial({ color: 0x241d33, side: THREE.DoubleSide }));
 curb.position.y = 0.15;
 scene.add(curb);
-/* sidewalk props — cheap primitives, parallax anchors for depth */
+/* sidewalk props — cheap primitives, parallax anchors for depth.
+   The neighborhood clutter is toggleable per venue; the streetlight
+   is not — it follows you all the way to space. */
 function prop(geo, color, x, y, z, ry){
   var m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: color }));
   m.position.set(x, y, z); m.rotation.y = ry || 0;
   scene.add(m); return m;
 }
-prop(new THREE.CylinderGeometry(0.3, 0.34, 0.72, 10), 0x9a3540, 5.0, 0.36, -1.2);   /* hydrant */
-prop(new THREE.CylinderGeometry(0.15, 0.15, 0.2, 8), 0x9a3540, 5.0, 0.82, -1.2);
-prop(new THREE.BoxGeometry(0.85, 0.85, 0.85), 0x2c4a72, -4.7, 0.43, 1.8, 0.5);      /* milk crate */
-prop(new THREE.CylinderGeometry(0.15, 0.15, 0.42, 10), 0x9aa4b2, 4.35, 0.21, 2.75); /* soda can */
-prop(new THREE.BoxGeometry(0.4, 0.07, 0.1), 0xd8d2e0, 2.6, 0.04, -4.2, 0.7);        /* chalk stick */
+var courtClutter = [];
+courtClutter.push(prop(new THREE.CylinderGeometry(0.3, 0.34, 0.72, 10), 0x9a3540, 5.0, 0.36, -1.2));   /* hydrant */
+courtClutter.push(prop(new THREE.CylinderGeometry(0.15, 0.15, 0.2, 8), 0x9a3540, 5.0, 0.82, -1.2));
+courtClutter.push(prop(new THREE.BoxGeometry(0.85, 0.85, 0.85), 0x2c4a72, -4.7, 0.43, 1.8, 0.5));      /* milk crate */
+courtClutter.push(prop(new THREE.CylinderGeometry(0.15, 0.15, 0.42, 10), 0x9aa4b2, 4.35, 0.21, 2.75)); /* soda can */
+courtClutter.push(prop(new THREE.BoxGeometry(0.4, 0.07, 0.1), 0xd8d2e0, 2.6, 0.04, -4.2, 0.7));        /* chalk stick */
 /* the streetlight itself — sells the single-source night */
 prop(new THREE.CylinderGeometry(0.07, 0.09, 4.4, 8), 0x1c1826, 3.4, 2.2, -2.9);
 prop(new THREE.BoxGeometry(1.4, 0.1, 0.32), 0x1c1826, 2.85, 4.42, -2.6, -0.5);
@@ -1008,9 +1280,11 @@ function paintDesign(key){
   tex.minFilter = THREE.LinearFilter;
   tex.generateMipmaps = false;
   texCache[key] = tex;
+  cvCache[key] = cv;
   urlCache[key] = cv.toDataURL();
   return tex;
 }
+var cvCache = {};
 function designURL(key){ paintDesign(key); return urlCache[key]; }
 function shade(hex, f){
   var n = parseInt(hex.slice(1), 16);
@@ -1093,15 +1367,52 @@ function makeBust(r){
     m.position.set(x, y, z); if (ry) m.rotation.y = ry;
     parent.add(m); return m;
   }
+  function glow(parent, w, h, d2, col, x, y, z){
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d2),
+      new THREE.MeshBasicMaterial({ color: col }));
+    m.position.set(x, y, z);
+    parent.add(m); return m;
+  }
   part(g, 2.0, 0.85, 0.8, B.jacket, 0, 0.42, 0);       /* shoulders */
   part(g, 1.0, 1.05, 0.95, B.skin, 0, 1.35, 0);        /* head */
-  part(g, 0.22, 0.3, 0.2, B.skin, 0, 1.2, 0.52);       /* nose */
-  part(g, 0.42, 0.09, 0.06, 0x8d4a3a, 0, 0.98, 0.5);   /* mouth */
+  if (B.style !== 'machine'){
+    part(g, 0.22, 0.3, 0.2, B.skin, 0, 1.2, 0.52);     /* nose */
+    part(g, 0.42, 0.09, 0.06, B.style === 'alien' ? 0x0c1808 : 0x8d4a3a, 0, 0.98, 0.5);
+  }
   if (B.style === 'shades'){
     part(g, 0.88, 0.24, 0.1, 0x14100c, 0, 1.5, 0.52);
     part(g, 0.94, 0.05, 0.06, 0xc8a838, 0, 1.63, 0.52);
     part(g, 1.12, 0.4, 1.05, B.cap, 0, 2.0, 0);        /* blond mop */
     part(g, 1.12, 0.3, 0.16, B.cap, 0, 1.82, 0.5);
+  } else if (B.style === 'tie'){
+    /* the suits: flat hair, collar, tie — school, mob, or state */
+    part(g, 0.17, 0.2, 0.06, 0x1c140c, -0.24, 1.5, 0.52);
+    part(g, 0.17, 0.2, 0.06, 0x1c140c, 0.24, 1.5, 0.52);
+    part(g, 1.06, 0.28, 1.0, B.cap, 0, 1.96, 0);
+    part(g, 0.52, 0.16, 0.12, 0xe9e2f0, 0, 0.8, 0.42);
+    part(g, 0.2, 0.5, 0.08, B.tie || 0xc0202c, 0, 0.52, 0.44);
+  } else if (B.style === 'alien'){
+    /* big wraparound eyes, antennae — crown optional */
+    part(g, 0.3, 0.42, 0.1, 0x0c1808, -0.26, 1.44, 0.5);
+    part(g, 0.3, 0.42, 0.1, 0x0c1808, 0.26, 1.44, 0.5);
+    part(g, 0.05, 0.5, 0.05, B.cap, -0.3, 2.05, 0);
+    glow(g, 0.13, 0.13, 0.13, 0xd9ff5e, -0.3, 2.34, 0);
+    part(g, 0.05, 0.5, 0.05, B.cap, 0.3, 2.05, 0);
+    glow(g, 0.13, 0.13, 0.13, 0xd9ff5e, 0.3, 2.34, 0);
+    if (B.crown){
+      part(g, 1.08, 0.16, 1.0, 0xe0bd4e, 0, 1.94, 0);
+      part(g, 0.16, 0.3, 0.16, 0xe0bd4e, -0.34, 2.1, 0);
+      part(g, 0.16, 0.4, 0.16, 0xe0bd4e, 0, 2.14, 0);
+      part(g, 0.16, 0.3, 0.16, 0xe0bd4e, 0.34, 2.1, 0);
+    }
+  } else if (B.style === 'machine'){
+    /* the finale: eye bar, grille, antenna, shoulder stacks */
+    glow(g, 0.72, 0.16, 0.08, 0xff4b3d, 0, 1.46, 0.5);
+    part(g, 0.6, 0.12, 0.08, 0x3c4654, 0, 1.0, 0.5);
+    part(g, 0.06, 0.5, 0.06, 0x55677d, 0, 2.1, 0);
+    glow(g, 0.13, 0.13, 0.13, 0xff4b3d, 0, 2.4, 0);
+    part(g, 0.26, 0.55, 0.26, 0x55677d, -0.85, 0.92, 0);
+    part(g, 0.26, 0.55, 0.26, 0x55677d, 0.85, 0.92, 0);
   } else {
     part(g, 0.17, 0.2, 0.06, 0x1c140c, -0.24, 1.5, 0.52);
     part(g, 0.17, 0.2, 0.06, 0x1c140c, 0.24, 1.5, 0.52);
@@ -1109,6 +1420,7 @@ function makeBust(r){
     part(hat, 1.08, 0.42, 1.02, B.cap, 0, 1.98, 0);    /* cap crown */
     part(hat, 0.9, 0.1, 0.6, B.cap, 0, 1.82, 0.72);    /* brim */
     if (B.style === 'side') hat.rotation.y = 1.05;
+    if (B.style === 'back') hat.rotation.y = Math.PI;  /* worn backwards */
     g.add(hat);
   }
   g.scale.set(1.5, 1.5, 1.5);
@@ -1117,6 +1429,90 @@ function makeBust(r){
   return g;
 }
 
+
+/* ================================================================
+   FINISHES (vision §8) — instance data on the binder entry, resolved
+   to material tweaks / texture variants here. 11 total:
+   HOLO, STATIC, SURVIVOR (wear), METAL, GLOW, MAGIC MOTION, POP-UP,
+   WET INK, X-RAY, INFINITY, MISPRINT.
+   ================================================================ */
+var finishTexCache = {};
+function finishTex(key, kind){
+  var ck = key + ':' + kind;
+  if (finishTexCache[ck]) return finishTexCache[ck];
+  paintDesign(key);                      /* ensure the base canvas exists */
+  var base = cvCache[key], S = base.width;
+  var cv = document.createElement('canvas'); cv.width = cv.height = S;
+  var c = cv.getContext('2d');
+  if (kind === 'xray'){
+    /* the back tells the truth, in negative */
+    c.drawImage(base, 0, 0);
+    c.globalCompositeOperation = 'difference';
+    c.fillStyle = '#fff'; c.fillRect(0, 0, S, S);
+  } else if (kind === 'wetink'){
+    /* pulled from the press too soon */
+    c.drawImage(base, 0, 0);
+    c.globalAlpha = 0.4;
+    c.drawImage(base, 7, 5);
+    c.globalAlpha = 0.22;
+    c.drawImage(base, -5, 9);
+  } else if (kind === 'misprint'){
+    /* the plates never lined up */
+    c.drawImage(base, 0, 0);
+    c.globalCompositeOperation = 'screen';
+    c.globalAlpha = 0.5;
+    c.drawImage(base, 6, 2);
+    c.globalAlpha = 0.35;
+    c.drawImage(base, -6, -2);
+  } else if (kind === 'motion'){
+    /* frame B of the lenticular: the world, mirrored */
+    c.translate(S, 0); c.scale(-1, 1);
+    c.drawImage(base, 0, 0);
+  }
+  var t = new THREE.CanvasTexture(cv);
+  t.minFilter = THREE.LinearFilter; t.generateMipmaps = false;
+  finishTexCache[ck] = t;
+  return t;
+}
+/* pot-chip hook: applied once at match setup (materials are per-disc) */
+function applyFinish(t){
+  var f = t.finish, m = t.mesh.material;
+  if (!f) return;
+  if (f === 'metal'){
+    m[1].shininess = 95; m[1].specular = new THREE.Color(0xdfe8f2);
+    m[0].shininess = 80; m[0].specular = new THREE.Color(0xbcc8d4);
+  } else if (f === 'glow'){
+    m[1].emissive = new THREE.Color(0x1c4a34);
+  } else if (f === 'xray'){
+    m[2].map = finishTex(t.key, 'xray'); m[2].needsUpdate = true;
+  } else if (f === 'wetink'){
+    m[1].map = finishTex(t.key, 'wetink'); m[1].needsUpdate = true;
+  } else if (f === 'misprint'){
+    m[1].map = finishTex(t.key, 'misprint'); m[1].needsUpdate = true;
+  } else if (f === 'motion'){
+    t.motionA = m[1].map;
+    t.motionB = finishTex(t.key, 'motion');
+  } else if (f === 'popup'){
+    /* the art floats off the cap — child plane, real parallax */
+    var pp = new THREE.Mesh(
+      new THREE.CircleGeometry(t.bR * 0.62, 20),
+      new THREE.MeshBasicMaterial({ map: paintDesign(t.key), transparent: true,
+        opacity: 0.95, depthWrite: false }));
+    pp.rotation.x = -Math.PI / 2;
+    pp.position.y = t.bH / 2 + 0.05;
+    t.mesh.add(pp);
+  } else if (f === 'infinity'){
+    m[1].emissive = new THREE.Color(0x30104a);   /* pulsed in the loop */
+    var ir = new THREE.Mesh(
+      new THREE.RingGeometry(t.bR * 0.72, t.bR * 0.82, 22),
+      new THREE.MeshBasicMaterial({ color: 0xb14aed, transparent: true, opacity: 0.7,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    ir.rotation.x = -Math.PI / 2;
+    ir.position.y = t.bH / 2 + 0.015;
+    t.mesh.add(ir);
+  }
+  /* holo + static resolve in the main loop / settle pipeline */
+}
 
 /* ---------- finishes (vision §8): STATIC + HOLO support ---------- */
 var staticTex = (function(){
@@ -1148,12 +1544,11 @@ function destaticize(t){
   }
 }
 /* ================================================================
-   VENUE — THE DRIVEWAY (the first venue, built to the corner-store
-   standard). Surface: the chalk court on the asphalt. Midground:
-   picket venueFence, parked car, sprinkler. Backdrop: the cul-de-sac at
-   dusk, painted onto two billboard cylinders (2 draw calls, parallax
-   from real depth, no fog — CLAUDE.md budget holds).
-   Signature: THE DOG behind the venueFence — barks at whoopees.
+   VENUES — parameterized backdrops built to the corner-store standard.
+   Two billboard cylinders (sky + horizon = 2 draw calls, parallax from
+   real depth, no fog), toggleable midground props, tinted lamp.
+   applyVenue(key) repaints the world between matches. The streetlight
+   itself never changes — it follows you all the way to space.
    ================================================================ */
 function venuePanoTex(w, h, paint){
   var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
@@ -1171,10 +1566,21 @@ venueGround.rotation.x = -Math.PI / 2;
 venueGround.position.y = -0.02;
 scene.add(venueGround);
 
-/* far ring: dusk sky, stars, distant rooftops */
+/* far ring (sky) + near ring (horizon) — maps assigned by applyVenue */
 var skyRing = new THREE.Mesh(
   new THREE.CylinderGeometry(58, 58, 34, 24, 1, true),
-  new THREE.MeshBasicMaterial({ side: THREE.BackSide, map: venuePanoTex(1024, 256, function(c, w, h){
+  new THREE.MeshBasicMaterial({ side: THREE.BackSide }));
+skyRing.position.y = 12;
+scene.add(skyRing);
+var houseRing = new THREE.Mesh(
+  new THREE.CylinderGeometry(26, 26, 15, 24, 1, true),
+  new THREE.MeshBasicMaterial({ side: THREE.BackSide, transparent: true, depthWrite: false }));
+houseRing.position.y = 5.2;
+scene.add(houseRing);
+
+/* ---------- sky painters ---------- */
+var SKY_PAINT = {
+  dusk: function(c, w, h){
     var g = c.createLinearGradient(0, 0, 0, h);
     g.addColorStop(0, '#05040a'); g.addColorStop(0.55, '#131024');
     g.addColorStop(0.78, '#2a1836'); g.addColorStop(0.9, '#3d1f2e'); g.addColorStop(1, '#0d0a15');
@@ -1183,35 +1589,62 @@ var skyRing = new THREE.Mesh(
       c.fillStyle = 'rgba(255,255,255,' + rnd(0.06, 0.4).toFixed(2) + ')';
       c.fillRect(rnd(0, w), rnd(0, h * 0.5), 1.5, 1.5);
     }
-    /* distant rooftop silhouettes, pre-darkened into the sky */
     c.fillStyle = '#0a0712';
     var x = 0;
-    while (x < w){
-      var bw = rnd(30, 90), bh = rnd(12, 40);
-      c.fillRect(x, h - bh, bw + 1, bh);
-      x += bw;
+    while (x < w){ var bw = rnd(30, 90), bh = rnd(12, 40); c.fillRect(x, h - bh, bw + 1, bh); x += bw; }
+  },
+  night: function(c, w, h){
+    var g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#03030c'); g.addColorStop(0.7, '#0c1024'); g.addColorStop(1, '#0a0a18');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    for (var i = 0; i < 150; i++){
+      c.fillStyle = 'rgba(255,255,255,' + rnd(0.08, 0.5).toFixed(2) + ')';
+      c.fillRect(rnd(0, w), rnd(0, h * 0.7), 1.5, 1.5);
     }
-  }) }));
-skyRing.position.y = 12;
-scene.add(skyRing);
+    /* the moon, mostly shadow */
+    c.fillStyle = '#e8e4d8'; c.beginPath(); c.arc(760, 52, 17, 0, 6.3); c.fill();
+    c.fillStyle = '#0a0c1c'; c.beginPath(); c.arc(752, 47, 15, 0, 6.3); c.fill();
+  },
+  space: function(c, w, h){
+    c.fillStyle = '#020208'; c.fillRect(0, 0, w, h);
+    for (var i = 0; i < 240; i++){
+      c.fillStyle = 'rgba(255,255,255,' + rnd(0.1, 0.7).toFixed(2) + ')';
+      c.fillRect(rnd(0, w), rnd(0, h), rnd(1, 2.2), rnd(1, 2.2));
+    }
+    /* nebula wisps */
+    var n1 = c.createRadialGradient(300, 90, 8, 300, 90, 130);
+    n1.addColorStop(0, 'rgba(154,90,224,0.16)'); n1.addColorStop(1, 'rgba(154,90,224,0)');
+    c.fillStyle = n1; c.fillRect(0, 0, w, h);
+    var n2 = c.createRadialGradient(700, 150, 8, 700, 150, 110);
+    n2.addColorStop(0, 'rgba(63,191,168,0.13)'); n2.addColorStop(1, 'rgba(63,191,168,0)');
+    c.fillStyle = n2; c.fillRect(0, 0, w, h);
+    /* the ringed planet */
+    c.fillStyle = '#c78a4e'; c.beginPath(); c.arc(520, 70, 20, 0, 6.3); c.fill();
+    c.fillStyle = 'rgba(90,50,20,0.5)'; c.beginPath(); c.arc(514, 64, 17, 0, 6.3); c.fill();
+    c.strokeStyle = '#e0bd8e'; c.lineWidth = 3;
+    c.beginPath(); c.ellipse(520, 72, 34, 9, -0.3, 0, 6.3); c.stroke();
+  },
+  inside: function(c, w, h){
+    var g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#08060c'); g.addColorStop(0.6, '#100c16'); g.addColorStop(1, '#0c0a12');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    /* ceiling beams, barely there */
+    c.strokeStyle = 'rgba(60,54,80,0.35)'; c.lineWidth = 6;
+    for (var x = 40; x < w; x += 160){ c.beginPath(); c.moveTo(x, 0); c.lineTo(x + 30, h * 0.35); c.stroke(); }
+  }
+};
 
-/* near ring: the cul-de-sac — houses with lit windows, trees */
-var houseRing = new THREE.Mesh(
-  new THREE.CylinderGeometry(26, 26, 15, 24, 1, true),
-  new THREE.MeshBasicMaterial({ side: THREE.BackSide, transparent: true, depthWrite: false,
-    map: venuePanoTex(1024, 256, function(c, w, h){
-    /* transparent above; houses along the bottom */
+/* ---------- horizon painters (transparent above, world along the bottom) ---------- */
+var HOR_PAINT = {
+  houses: function(c, w, h){
     var x = 0;
     while (x < w){
       var hw = rnd(70, 130), hh = rnd(60, 100), gap = rnd(18, 60);
       var hx = x, hy = h - hh;
-      c.fillStyle = '#151021';
-      c.fillRect(hx, hy, hw, hh);
-      /* roof */
+      c.fillStyle = '#151021'; c.fillRect(hx, hy, hw, hh);
       c.beginPath();
       c.moveTo(hx - 6, hy); c.lineTo(hx + hw / 2, hy - rnd(18, 30)); c.lineTo(hx + hw + 6, hy);
       c.closePath(); c.fillStyle = '#100c19'; c.fill();
-      /* lit windows */
       var rows = 2, cols = Math.max(2, Math.floor(hw / 34));
       for (var r = 0; r < rows; r++) for (var k = 0; k < cols; k++){
         if (Math.random() < 0.45) continue;
@@ -1219,17 +1652,239 @@ var houseRing = new THREE.Mesh(
         c.fillRect(hx + 8 + k * (hw - 16) / cols, hy + 12 + r * (hh - 24) / rows, 10, 13);
       }
       x += hw + gap;
-      /* a tree in some gaps */
       if (gap > 34 && Math.random() < 0.7){
         c.fillStyle = '#0c0a14';
         c.beginPath(); c.arc(x - gap / 2, h - rnd(50, 70), rnd(20, 30), 0, 6.3); c.fill();
         c.fillRect(x - gap / 2 - 3, h - 40, 6, 40);
       }
     }
-  }) }));
-houseRing.position.y = 5.2;
-scene.add(houseRing);
+  },
+  school: function(c, w, h){
+    /* one long brick building — the whole horizon is school */
+    c.fillStyle = '#1a1119'; c.fillRect(0, h - 92, w, 92);
+    c.fillStyle = '#120b12'; c.fillRect(0, h - 100, w, 10);
+    for (var x = 20; x < w; x += 60){
+      for (var r = 0; r < 2; r++){
+        c.fillStyle = Math.random() < 0.3 ? 'rgba(220,240,200,0.8)' : '#0d080d';
+        c.fillRect(x, h - 80 + r * 34, 26, 22);
+      }
+    }
+    /* the doors + the flagpole */
+    c.fillStyle = '#0d080d'; c.fillRect(480, h - 54, 46, 54);
+    c.strokeStyle = '#8d94a2'; c.lineWidth = 3;
+    c.beginPath(); c.moveTo(200, h); c.lineTo(200, h - 148); c.stroke();
+    c.fillStyle = '#c23a56'; c.fillRect(200, h - 148, 26, 14);
+  },
+  lot: function(c, w, h){
+    /* plank fences, weeds, dead tires, one proud billboard */
+    for (var x = 0; x < w; x += 13){
+      if (Math.random() < 0.12) continue;   /* missing planks */
+      c.fillStyle = '#221a2c'; c.fillRect(x, h - rnd(48, 58), 10, 60);
+    }
+    c.fillStyle = '#161020'; c.fillRect(0, h - 30, w, 4);
+    for (var i = 0; i < 26; i++){
+      c.strokeStyle = 'rgba(60,90,50,0.7)'; c.lineWidth = 2;
+      var wx = rnd(0, w), wh = rnd(10, 26);
+      c.beginPath(); c.moveTo(wx, h); c.lineTo(wx + rnd(-6, 6), h - wh); c.stroke();
+    }
+    c.strokeStyle = '#1c1826'; c.lineWidth = 5;
+    c.beginPath(); c.arc(150, h - 12, 14, 0, 6.3); c.stroke();
+    c.beginPath(); c.arc(168, h - 10, 14, 0, 6.3); c.stroke();
+    /* billboard */
+    c.fillStyle = '#241b30'; c.fillRect(700, h - 150, 150, 74);
+    c.fillStyle = '#3d2e50'; c.fillRect(708, h - 142, 134, 58);
+    c.font = 'bold 30px "Comic Sans MS", cursive'; c.fillStyle = '#e0bd63';
+    c.fillText('SODA!', 730, h - 100);
+    c.fillStyle = '#1c1826'; c.fillRect(760, h - 76, 10, 76);
+  },
+  hall: function(c, w, h){
+    /* detention hall: lockers forever, one clock, the trophy case */
+    c.fillStyle = '#141018'; c.fillRect(0, h - 110, w, 110);
+    for (var x = 0; x < w; x += 27){
+      c.fillStyle = '#232c3a'; c.fillRect(x + 2, h - 104, 23, 88);
+      c.fillStyle = '#1a2130';
+      c.fillRect(x + 6, h - 96, 15, 3); c.fillRect(x + 6, h - 89, 15, 3);
+      c.fillStyle = '#0f141e'; c.beginPath(); c.arc(x + 13, h - 62, 3, 0, 6.3); c.fill();
+    }
+    c.fillStyle = '#0d0a10'; c.fillRect(0, h - 16, w, 16);
+    /* clock */
+    c.fillStyle = '#d8d2e0'; c.beginPath(); c.arc(370, h - 130, 13, 0, 6.3); c.fill();
+    c.strokeStyle = '#161020'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(370, h - 130); c.lineTo(370, h - 140); c.moveTo(370, h - 130); c.lineTo(377, h - 128); c.stroke();
+    /* trophy case, faintly gold */
+    c.fillStyle = 'rgba(224,189,78,0.18)'; c.fillRect(600, h - 100, 90, 80);
+    c.strokeStyle = '#2c2434'; c.lineWidth = 4; c.strokeRect(600, h - 100, 90, 80);
+    c.fillStyle = 'rgba(224,189,78,0.8)';
+    c.fillRect(618, h - 62, 8, 16); c.fillRect(644, h - 70, 10, 24); c.fillRect(670, h - 58, 7, 12);
+  },
+  arcade: function(c, w, h){
+    /* cabinet row, every screen a different fever dream */
+    c.fillStyle = '#0e0a16'; c.fillRect(0, h - 100, w, 100);
+    var cols = ['#3fbfa8', '#e0568f', '#b14aed', '#e0bd4e', '#5a8fff'];
+    var i = 0;
+    for (var x = 10; x < w - 60; x += 74){
+      var ch = rnd(72, 92);
+      c.fillStyle = '#1a1426'; c.fillRect(x, h - ch, 58, ch);
+      c.fillStyle = '#241b36'; c.fillRect(x - 3, h - ch - 8, 64, 12);
+      c.fillStyle = cols[i++ % cols.length];
+      c.globalAlpha = 0.85; c.fillRect(x + 9, h - ch + 14, 40, 26); c.globalAlpha = 1;
+      c.fillStyle = '#100c1c'; c.fillRect(x + 9, h - ch + 48, 40, 10);
+    }
+    /* neon zigzag over everything */
+    c.strokeStyle = 'rgba(177,74,237,0.8)'; c.lineWidth = 4; c.beginPath();
+    for (var zx = 0; zx <= w; zx += 64) c.lineTo(zx, h - 106 + (zx / 64 % 2 ? 10 : -10));
+    c.stroke();
+  },
+  felt: function(c, w, h){
+    /* the backroom: wood panel, crates, one pink neon promise */
+    c.fillStyle = '#171009'; c.fillRect(0, h - 110, w, 110);
+    c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = 2;
+    for (var y = h - 96; y < h; y += 18){ c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
+    for (var x = 0; x < w; x += 90){ c.beginPath(); c.moveTo(x, h - 110); c.lineTo(x, h); c.stroke(); }
+    c.fillStyle = '#1e1610';
+    c.fillRect(120, h - 60, 52, 60); c.fillRect(150, h - 96, 44, 40);
+    c.fillRect(820, h - 54, 60, 54);
+    /* neon: CHIPS */
+    c.strokeStyle = '#f06fa8'; c.lineWidth = 3;
+    c.strokeRect(470, h - 128, 120, 44);
+    c.font = 'bold 28px "Comic Sans MS", cursive';
+    c.fillStyle = '#f06fa8'; c.fillText('CHIP$', 488, h - 96);
+    c.fillStyle = 'rgba(240,111,168,0.12)'; c.fillRect(455, h - 138, 150, 138);
+  },
+  cityhall: function(c, w, h){
+    /* civic centered: columns, dome, steps — repeated twice around */
+    for (var o = 0; o < 2; o++){
+      var cx = 100 + o * 512;
+      c.fillStyle = '#191426'; c.fillRect(cx, h - 96, 320, 96);
+      for (var i = 0; i < 6; i++){
+        c.fillStyle = '#262040'; c.fillRect(cx + 22 + i * 50, h - 84, 18, 70);
+      }
+      c.beginPath(); c.moveTo(cx - 10, h - 96); c.lineTo(cx + 160, h - 136); c.lineTo(cx + 330, h - 96);
+      c.closePath(); c.fillStyle = '#221c36'; c.fill();
+      c.beginPath(); c.arc(cx + 160, h - 136, 34, Math.PI, 0); c.closePath();
+      c.fillStyle = '#2c2444'; c.fill();
+      c.fillStyle = 'rgba(255,240,208,0.7)'; c.fillRect(cx + 152, h - 168, 4, 18);
+      c.fillStyle = '#141020';
+      c.fillRect(cx - 14, h - 14, 348, 6); c.fillRect(cx - 8, h - 24, 336, 5);
+    }
+  },
+  oval: function(c, w, h){
+    /* the oval court: white fence, the obelisk, many flags */
+    c.fillStyle = '#0e1408'; c.fillRect(0, h - 60, w, 60);
+    for (var x = 0; x < w; x += 16){
+      c.fillStyle = 'rgba(216,210,224,0.6)'; c.fillRect(x, h - 44, 5, 30);
+    }
+    c.fillStyle = 'rgba(216,210,224,0.5)'; c.fillRect(0, h - 46, w, 4);
+    c.fillStyle = '#c9ccd4';
+    c.beginPath(); c.moveTo(500, h - 190); c.lineTo(510, h - 40); c.lineTo(478, h - 40); c.lineTo(488, h - 190);
+    c.closePath(); c.fill();
+    c.fillStyle = '#8d94a2';
+    c.beginPath(); c.moveTo(488, h - 190); c.lineTo(494, h - 208); c.lineTo(500, h - 190); c.closePath(); c.fill();
+    for (var f = 0; f < 5; f++){
+      var fx = 120 + f * 190;
+      c.strokeStyle = '#8d94a2'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(fx, h - 40); c.lineTo(fx, h - 110); c.stroke();
+      c.fillStyle = f % 2 ? '#c0202c' : '#2b4bd4'; c.fillRect(fx, h - 110, 20, 11);
+    }
+  },
+  crop: function(c, w, h){
+    /* corn to the horizon, one saucer working late */
+    c.fillStyle = '#0a1206'; c.fillRect(0, h - 40, w, 40);
+    for (var x = 0; x < w; x += 9){
+      var sh = rnd(36, 82);
+      c.strokeStyle = 'rgba(30,52,20,0.9)'; c.lineWidth = 3;
+      c.beginPath(); c.moveTo(x, h); c.lineTo(x + rnd(-4, 4), h - sh); c.stroke();
+      c.strokeStyle = 'rgba(44,70,28,0.8)'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(x, h - sh * 0.6); c.lineTo(x + 7, h - sh * 0.75); c.stroke();
+    }
+    /* the saucer + its beam */
+    c.fillStyle = 'rgba(217,255,94,0.1)';
+    c.beginPath(); c.moveTo(285, h - 132); c.lineTo(345, h - 132); c.lineTo(380, h); c.lineTo(250, h);
+    c.closePath(); c.fill();
+    c.fillStyle = '#8fa3ba'; c.beginPath(); c.ellipse(315, h - 138, 44, 12, 0, 0, 6.3); c.fill();
+    c.fillStyle = '#bcd0e2'; c.beginPath(); c.ellipse(315, h - 148, 20, 11, 0, 0, 6.3); c.fill();
+    c.fillStyle = '#ffd23f';
+    c.beginPath(); c.arc(288, h - 136, 3, 0, 6.3); c.fill();
+    c.beginPath(); c.arc(315, h - 132, 3, 0, 6.3); c.fill();
+    c.beginPath(); c.arc(342, h - 136, 3, 0, 6.3); c.fill();
+  },
+  mothership: function(c, w, h){
+    /* inside the hull: plates, portholes, running lights */
+    c.fillStyle = '#1c2430'; c.fillRect(0, h - 120, w, 120);
+    c.strokeStyle = 'rgba(10,14,20,0.9)'; c.lineWidth = 4;
+    for (var x = -60; x < w; x += 128){
+      c.beginPath(); c.arc(x + 64, h + 60, 150, Math.PI * 1.15, Math.PI * 1.85); c.stroke();
+    }
+    c.beginPath(); c.moveTo(0, h - 120); c.lineTo(w, h - 120); c.stroke();
+    for (var p = 30; p < w; p += 70){
+      c.fillStyle = 'rgba(127,217,192,0.85)';
+      c.beginPath(); c.arc(p, h - 84, 7, 0, 6.3); c.fill();
+      c.strokeStyle = '#2c3a4c'; c.lineWidth = 3;
+      c.beginPath(); c.arc(p, h - 84, 9, 0, 6.3); c.stroke();
+    }
+    for (var q = 0; q < w; q += 34){
+      c.fillStyle = q % 68 ? 'rgba(255,75,61,0.8)' : 'rgba(224,189,78,0.8)';
+      c.fillRect(q, h - 34, 6, 4);
+    }
+    c.strokeStyle = '#2c3a4c'; c.lineWidth = 6;
+    for (var s = 80; s < w; s += 256){
+      c.beginPath(); c.moveTo(s, h); c.lineTo(s + 40, h - 120); c.stroke();
+    }
+  },
+  throne: function(c, w, h){
+    /* the throne ring: alien columns, banners, rocks that forgot gravity */
+    for (var i = 0; i < 7; i++){
+      var cx = 40 + i * 150;
+      c.fillStyle = '#241033';
+      c.beginPath(); c.moveTo(cx, h); c.lineTo(cx + 10, h - 150); c.lineTo(cx + 34, h - 150); c.lineTo(cx + 44, h);
+      c.closePath(); c.fill();
+      c.fillStyle = 'rgba(245,185,61,0.85)';
+      c.beginPath(); c.arc(cx + 22, h - 120, 4, 0, 6.3); c.fill();
+      c.beginPath(); c.arc(cx + 22, h - 92, 3, 0, 6.3); c.fill();
+      if (i % 2){
+        c.fillStyle = '#4c1030';
+        c.beginPath(); c.moveTo(cx + 8, h - 148); c.lineTo(cx + 36, h - 148); c.lineTo(cx + 22, h - 96);
+        c.closePath(); c.fill();
+      }
+    }
+    c.fillStyle = '#1a0b28';
+    [[130, 190, 26], [420, 170, 18], [700, 200, 30], [900, 165, 15]].forEach(function(rk){
+      c.beginPath(); c.ellipse(rk[0], h - rk[1], rk[2], rk[2] * 0.7, 0.3, 0, 6.3); c.fill();
+    });
+  },
+  machine: function(c, w, h){
+    /* THE ENGINE's guts: gears, pipes, gauges, warnings */
+    c.fillStyle = '#12161c'; c.fillRect(0, h - 110, w, 110);
+    function gear(gx, gy, gr){
+      c.strokeStyle = '#39434f'; c.lineWidth = 9;
+      c.beginPath(); c.arc(gx, gy, gr, 0, 6.3); c.stroke();
+      for (var t = 0; t < 8; t++){
+        var a = t * Math.PI / 4;
+        c.fillStyle = '#39434f';
+        c.fillRect(gx + Math.cos(a) * (gr + 6) - 4, gy + Math.sin(a) * (gr + 6) - 4, 9, 9);
+      }
+      c.fillStyle = '#1c2230'; c.beginPath(); c.arc(gx, gy, gr * 0.4, 0, 6.3); c.fill();
+    }
+    gear(120, h - 60, 34); gear(190, h - 96, 22); gear(520, h - 70, 40); gear(840, h - 58, 28);
+    /* pipes */
+    c.strokeStyle = '#2c3440'; c.lineWidth = 12;
+    c.beginPath(); c.moveTo(240, h - 30); c.lineTo(460, h - 30); c.lineTo(460, h - 90); c.lineTo(700, h - 90); c.stroke();
+    c.strokeStyle = '#39434f'; c.lineWidth = 3;
+    [280, 340, 400].forEach(function(px){ c.beginPath(); c.moveTo(px, h - 40); c.lineTo(px, h - 20); c.stroke(); });
+    /* gauges + warning strip */
+    [660, 940].forEach(function(gx){
+      c.fillStyle = '#c9ccd4'; c.beginPath(); c.arc(gx, h - 44, 11, 0, 6.3); c.fill();
+      c.strokeStyle = '#c0202c'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(gx, h - 44); c.lineTo(gx + 7, h - 52); c.stroke();
+    });
+    for (var wx = 0; wx < w; wx += 46){
+      c.fillStyle = wx % 92 ? 'rgba(255,75,61,0.9)' : 'rgba(30,20,20,0.9)';
+      c.fillRect(wx, h - 112, 23, 6);
+    }
+  }
+};
 
+/* ---------- midground props (toggleable) ---------- */
 /* picket venueFence: one baked plane behind the rival's side */
 var venueFence = new THREE.Mesh(
   new THREE.PlaneGeometry(19, 1.5),
@@ -1247,11 +1902,13 @@ venueFence.position.set(0, 0.72, -7.6);
 scene.add(venueFence);
 
 /* the parked car (low-poly, cheap) */
-prop(new THREE.BoxGeometry(2.6, 0.55, 1.1), 0x1b2735, -6.8, 0.34, -3.4, 0.35);
-prop(new THREE.BoxGeometry(1.4, 0.45, 1.0), 0x141c28, -6.9, 0.82, -3.4, 0.35);
+var venueCar = [
+  prop(new THREE.BoxGeometry(2.6, 0.55, 1.1), 0x1b2735, -6.8, 0.34, -3.4, 0.35),
+  prop(new THREE.BoxGeometry(1.4, 0.45, 1.0), 0x141c28, -6.9, 0.82, -3.4, 0.35)
+];
 
 /* the sprinkler (ticks quietly while you line up a shot) */
-prop(new THREE.CylinderGeometry(0.07, 0.09, 0.22, 8), 0x2a3440, 5.4, 0.11, 2.6);
+var venueSprinkler = prop(new THREE.CylinderGeometry(0.07, 0.09, 0.22, 8), 0x2a3440, 5.4, 0.11, 2.6);
 
 /* THE DOG — behind the venueFence, loses its mind at whoopees */
 var venueDog = new THREE.Group();
@@ -1271,6 +1928,7 @@ venueDog.position.set(2.6, 0, -7.95);
 scene.add(venueDog);
 var dogBarkT = 0;
 function venueDogBark(){
+  if (!venueDog.visible) return;
   dogBarkT = 1;
   sfxDog();
 }
@@ -1278,6 +1936,46 @@ function sfxDog(){
   tone(700, 0.08, 'square', 0.09, 420);
   setTimeout(function(){ tone(760, 0.09, 'square', 0.09, 430); }, 170);
 }
+
+/* ---------- the venue table ---------- */
+var VENUE_DEFS = {
+  driveway:   { sky:'dusk',   hor:'houses',     lamp:0xffd9a8, ground:0x0a0712, fence:1, car:1, dog:1, spr:1, clutter:1 },
+  schoolyard: { sky:'dusk',   hor:'school',     lamp:0xfff2c8, ground:0x0a0712, fence:1, clutter:1 },
+  lot:        { sky:'dusk',   hor:'lot',        lamp:0xffc890, ground:0x0b0810, fence:1, car:1, dog:1, clutter:1 },
+  culdesac:   { sky:'night',  hor:'houses',     lamp:0xd8e8ff, ground:0x0a0712, fence:1, car:1, spr:1, clutter:1 },
+  hall:       { sky:'inside', hor:'hall',       lamp:0xe8f4d8, ground:0x0c0a10 },
+  arcade:     { sky:'inside', hor:'arcade',     lamp:0xc06af0, ground:0x0c0a14 },
+  backroom:   { sky:'inside', hor:'felt',       lamp:0xff9a50, ground:0x0a1210 },
+  cityhall:   { sky:'night',  hor:'cityhall',   lamp:0xfff0d0, ground:0x0b0a12, clutter:1 },
+  oval:       { sky:'night',  hor:'oval',       lamp:0xe8f0ff, ground:0x0b0a12 },
+  crop:       { sky:'night',  hor:'crop',       lamp:0x9adf6a, ground:0x081006, fence:1 },
+  mothership: { sky:'space',  hor:'mothership', lamp:0x7fd9c0, ground:0x05040c },
+  throne:     { sky:'space',  hor:'throne',     lamp:0xf5b93d, ground:0x0a0512 },
+  machine:    { sky:'space',  hor:'machine',    lamp:0xff4b3d, ground:0x0c0508 }
+};
+var venueKey = null;
+function applyVenue(key){
+  var v = VENUE_DEFS[key] || VENUE_DEFS.driveway;
+  if (venueKey === key) return;
+  venueKey = key;
+  var os = skyRing.material.map;
+  skyRing.material.map = venuePanoTex(1024, 256, SKY_PAINT[v.sky]);
+  skyRing.material.needsUpdate = true;
+  if (os) os.dispose();
+  var oh = houseRing.material.map;
+  houseRing.material.map = venuePanoTex(1024, 256, HOR_PAINT[v.hor]);
+  houseRing.material.needsUpdate = true;
+  if (oh) oh.dispose();
+  venueFence.visible = !!v.fence;
+  venueCar.forEach(function(m){ m.visible = !!v.car; });
+  venueSprinkler.visible = !!v.spr;
+  venueDog.visible = !!v.dog;
+  courtClutter.forEach(function(m){ m.visible = !!v.clutter; });
+  lamp.color.setHex(v.lamp);
+  venueGround.material.color.setHex(v.ground);
+  mark('venue:' + key);
+}
+applyVenue('driveway');
 /* ================================================================
    RUN + MATCH STATE
    ================================================================ */
@@ -1290,24 +1988,42 @@ var aimPos = { x: 0, z: 0 }, aimT = 0, power = 0;
 var rivalPlan = null;
 var bannerTimer = null, barkTimer = null;
 
+/* ?stage=N — debug/harness start: jump the court, pad the war chest */
+var DBG_STAGE = (function(){
+  var m = location.search.match(/[?&]stage=(\d+)/);
+  return m ? parseInt(m[1], 10) : 0;
+})();
 function newRun(stackKey){
   var stack = STACKS[stackKey || 'sandlot'];
+  var rivals = {};
+  Object.keys(RIVALS).forEach(function(k){
+    var r = RIVALS[k], c = {};
+    for (var kk in r) c[kk] = r[kk];
+    c.binder = r.binder.slice();
+    rivals[k] = c;
+  });
   run = {
     stackKey: stackKey || 'sandlot',
     binder: stack.binder.map(function(k){ return { key: k, prov: null, finish: null, wear: 0 }; }),
     stage: 0,
+    path: {},                    /* forks taken: stage index -> option index */
     money: 0,                    /* Lunch Money — the earned build budget */
     pouch: stack.pouch.slice(),
     slammer: stack.pouch[0],
     rumorKnown: false,
-    rivals: RIVALS.map(function(r){
-      var c = {}; for (var k in r) c[k] = r[k];
-      c.binder = r.binder.slice();
-      return c;
-    })
+    beaten: [],
+    stats: { matches: 0, wins: 0, caps: 0, lost: 0, earned: 0 },
+    rivals: rivals
   };
+  if (DBG_STAGE){
+    run.stage = Math.min(DBG_STAGE, COURT.length - 1);
+    run.money = 25;
+    ['mecha','manhole','magnet','rubber','double','whoopee','feather','gum','star','skull']
+      .forEach(function(k){ run.binder.push({ key: k, prov: null, finish: null, wear: 0 }); });
+    tlog('DEBUG start at stage ' + run.stage);
+  }
 }
-function curRival(){ return run.rivals[NODES[run.stage].r]; }
+function curRival(){ return run.rivals[curNode().r]; }
 /* every chip that enters the Binder is recorded in the all-time Collection */
 function binderAdd(entry){
   run.binder.push(entry);
@@ -1320,35 +2036,96 @@ function binderAdd(entry){
 
 /* ---------- screens ---------- */
 function showScreen(id){
-  ['title','stacks','collection','ante','result','runend','map','store'].forEach(function(s){
+  ['title','stacks','collection','ante','result','runend','map','store','binder'].forEach(function(s){
     el(s).classList.toggle('show', s === id);
   });
   el('hud').classList.toggle('show', id === null);
 }
 
-/* ---------- court map ---------- */
+/* ---------- the in-run Binder: what you carry, where it came from ---------- */
+function openBinder(){
+  el('bindersub').textContent = run.binder.length + ' chips · LUNCH MONEY $' + run.money;
+  var g = el('rbgrid'); g.innerHTML = '';
+  run.binder.forEach(function(entry){
+    var d = DESIGNS[entry.key];
+    var card = document.createElement('div');
+    card.className = 'tz ' + d.rarity;
+    var line = d.fxdesc || (entry.prov ? 'won off ' + entry.prov : 'from the starter page');
+    card.innerHTML = '<img src="' + designURL(entry.key) + '"' +
+      ((entry.wear || 0) >= 3 ? ' style="filter:grayscale(.25) contrast(.92)"' : '') +
+      '><div class="nm">' + d.name + '</div><div class="fx">' + line + '</div>' +
+      (entry.prov && d.fxdesc ? '<div class="fx" style="color:var(--pop)">won off ' + entry.prov + '</div>' : '') +
+      (entry.finish ? '<div class="fnsh">' + entry.finish.toUpperCase() + '</div>' : '') +
+      ((entry.wear || 0) >= 3 ? '<div class="wear">SURVIVOR ×' + entry.wear + '</div>' : '');
+    g.appendChild(card);
+  });
+  /* plastic-sleeve empties: the page always has room for more */
+  for (var i = 0; i < Math.max(0, 3 - (run.binder.length % 3 || 3)) + 3; i++){
+    var slot = document.createElement('div');
+    slot.className = 'tz slot';
+    slot.innerHTML = '<div style="width:52px;height:52px;border-radius:50%;border:2px dashed #4a4058"></div>';
+    g.appendChild(slot);
+  }
+  el('rbpouch').textContent = 'SLAMMER POUCH: ' +
+    run.pouch.map(function(k){ return SLAMMERS[k].name + (k === run.slammer ? ' ✓' : ''); }).join(' · ');
+  showScreen('binder');
+}
+
+/* ---------- court map: four acts, forks you pick ---------- */
 function showMap(){
   var wrap = el('mapnodes'); wrap.innerHTML = '';
-  NODES.forEach(function(n, i){
-    var d = document.createElement('div');
-    d.className = 'mapnode card' + (i === run.stage ? ' cur' : '');
-    var label = n.t === 'store' ? 'THE CORNER STORE'
-      : run.rivals[n.r].turf + ' — ' + run.rivals[n.r].name;
-    var st = i < run.stage ? 'BEAT' : (i === run.stage ? 'NOW' : 'LOCKED');
-    d.innerHTML = '<span>' + label + '</span><span class="st">' + st + '</span>';
-    wrap.appendChild(d);
+  var curAct = COURT[run.stage].act;
+  var curEl = null;
+  COURT.forEach(function(layer, i){
+    if (i === 0 || COURT[i - 1].act !== layer.act){
+      var h = document.createElement('div');
+      h.className = 'actline';
+      h.textContent = 'ACT ' + (layer.act + 1) + ' — ' + ACTS[layer.act];
+      if (layer.act > curAct) h.style.opacity = 0.35;
+      wrap.appendChild(h);
+    }
+    var row = document.createElement('div');
+    row.className = 'maprow';
+    var picked = Math.min(run.path[i] || 0, layer.opts.length - 1);
+    layer.opts.forEach(function(n, oi){
+      var d = document.createElement('div');
+      d.className = 'mapnode card';
+      /* rivals in future acts stay rumors */
+      var mystery = n.t === 'match' && layer.act > curAct;
+      var label = n.t === 'store' ? 'THE CORNER STORE'
+        : (mystery ? '?????' : RIVALS[n.r].turf + ' — ' + RIVALS[n.r].name);
+      var st;
+      if (i < run.stage) st = (layer.opts.length > 1 && picked !== oi) ? 'PASSED' : 'BEAT';
+      else if (i === run.stage){
+        st = layer.opts.length > 1 ? (picked === oi ? 'NOW' : 'OR...') : 'NOW';
+        d.classList.add(picked === oi ? 'cur' : 'alt');
+        if (layer.opts.length > 1)
+          d.addEventListener('click', function(){ run.path[i] = oi; showMap(); });
+        if (picked === oi) curEl = d;
+      } else st = 'LOCKED';
+      if (i !== run.stage) d.style.opacity = i < run.stage ? 0.45 : 0.7;
+      d.innerHTML = '<span>' + label + '</span><span class="st">' + st + '</span>';
+      row.appendChild(d);
+    });
+    wrap.appendChild(row);
   });
   el('mapmoney').textContent = 'LUNCH MONEY: $' + run.money;
   var boss = curNodeRival();
   el('maprumor').textContent = run.rumorKnown && boss && boss.rule
     ? 'rumor: ' + boss.name + ' plays ' + boss.ruleName : '';
   showScreen('map');
+  if (curEl) setTimeout(function(){ try{ curEl.scrollIntoView({ block: 'center' }); }catch(e){} }, 30);
   mark('map');
-  if (AUTO) setTimeout(function(){ el('gobtn').click(); }, 150);
+  if (AUTO) setTimeout(function(){
+    var L = COURT[run.stage];
+    if (L.opts.length > 1) run.path[run.stage] = Math.floor(rnd(0, L.opts.length));
+    el('gobtn').click();
+  }, 150);
 }
 function curNodeRival(){
-  for (var i = run.stage; i < NODES.length; i++){
-    if (NODES[i].t === 'match') return run.rivals[NODES[i].r];
+  for (var i = run.stage; i < COURT.length; i++){
+    var n = stageNode(i);
+    if (n.t === 'match') return run.rivals[n.r];
   }
   return null;
 }
@@ -1363,7 +2140,7 @@ var BAGS = {
   chum:  { name: 'CHUM BAG',  cost: 4, desc: '3 commons — ante fodder', tint: '#6d7b8d' },
   weird: { name: 'WEIRD BAG', cost: 5, desc: '2 rares from the effect pool', tint: '#b14aed' },
   heavy: { name: 'HEAVY BAG', cost: 5, desc: '2 weight & field chips', tint: '#e0863d' },
-  foil:  { name: 'FOIL BAG',  cost: 6, desc: '1 chip · big odds · HOLO inside', tint: '#7fd9c0' }
+  foil:  { name: 'FOIL BAG',  cost: 6, desc: '1 chip · big odds · a finish inside', tint: '#7fd9c0' }
 };
 var POOL_COMMON = ['smiley','pizza','alien','star','skull','cat','hypno','duck'];
 var POOL_EFFECT = ['rubber','double','whoopee','vhs'];
@@ -1510,17 +2287,32 @@ function buyRumor(){
   renderStore();
 }
 /* ---------- Blind Bags: the ritual ---------- */
+function rollFinish(bag){
+  if (bag === 'foil'){
+    /* foil always shines — the question is HOW */
+    var r = Math.random();
+    if (r < 0.4) return 'holo';
+    if (r < 0.55) return 'glow';
+    if (r < 0.7) return 'metal';
+    if (r < 0.8) return 'popup';
+    if (r < 0.9) return 'infinity';
+    return 'motion';
+  }
+  /* the misprint pool: factory accidents */
+  if (Math.random() < 0.25)
+    return ['static', 'wetink', 'xray', 'misprint'][Math.floor(rnd(0, 4))];
+  return null;
+}
 function rollBag(type){
   var pulls = [];
-  function fin(p){ return p; }
   if (type === 'chum'){
     for (var i = 0; i < 3; i++) pulls.push({ key: POOL_COMMON[Math.floor(rnd(0, POOL_COMMON.length))], finish: null });
   } else if (type === 'weird'){
-    for (var j = 0; j < 2; j++) pulls.push({ key: POOL_EFFECT[Math.floor(rnd(0, 4))], finish: Math.random() < 0.2 ? 'static' : null });
+    for (var j = 0; j < 2; j++) pulls.push({ key: POOL_EFFECT[Math.floor(rnd(0, 4))], finish: rollFinish() });
   } else if (type === 'heavy'){
-    for (var k = 0; k < 2; k++) pulls.push({ key: POOL_PHYS[Math.floor(rnd(0, 4))], finish: Math.random() < 0.2 ? 'static' : null });
+    for (var k = 0; k < 2; k++) pulls.push({ key: POOL_PHYS[Math.floor(rnd(0, 4))], finish: rollFinish() });
   } else {
-    pulls.push({ key: Math.random() < 0.3 ? 'mecha' : POOL_EFFECT.concat(POOL_PHYS)[Math.floor(rnd(0, 8))], finish: 'holo' });
+    pulls.push({ key: Math.random() < 0.3 ? 'mecha' : POOL_EFFECT.concat(POOL_PHYS)[Math.floor(rnd(0, 8))], finish: rollFinish('foil') });
   }
   return pulls;
 }
@@ -1656,6 +2448,9 @@ function openAnte(){
   el('antecount').textContent = ante;
   /* rival stake preview: first N of his binder (face up so you can size the trade) */
   r.stake = r.binder.slice(0, ante);
+  /* rule crown: the crown chip always rides in his stake */
+  if (r.rule === 'crown' && r.stake.indexOf('crown') < 0 && r.binder.indexOf('crown') >= 0)
+    r.stake[0] = 'crown';
   var pp = el('potprev'); pp.innerHTML = '';
   r.stake.forEach(function(k){
     var img = document.createElement('img');
@@ -1740,55 +2535,153 @@ function demandOK(r){
 /* ================================================================
    MATCH SETUP
    ================================================================ */
+/* additive ground ring parented to a marked pot chip (bounty, crown) */
+function potRing(t, color){
+  var ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.56, 0.68, 20),
+    new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.85,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = TUNE.TAZO_H;
+  t.mesh.add(ring);
+}
+/* layout -> starting spot per chip: {x, z, h(stack tier)} */
+function potSpots(stack, layout){
+  var spots = [], n = stack.length, i, a;
+  if (layout === 'multi'){
+    /* 2-3 neat stacks around center */
+    var k = n >= 8 ? 3 : 2, hs = [0, 0, 0], a0 = rnd(0, Math.PI * 2);
+    for (i = 0; i < n; i++){
+      var si = i % k; a = a0 + si * Math.PI * 2 / k;
+      spots.push({ x: Math.cos(a) * 1.35, z: Math.sin(a) * 1.35, h: hs[si]++ });
+    }
+  } else if (layout === 'scatter'){
+    /* chips strewn flat on two rings — no stack to crack */
+    var inner = Math.min(n, 5);
+    for (i = 0; i < n; i++){
+      var ring = i < inner ? 0.9 : 1.75;
+      var cnt = i < inner ? inner : n - inner;
+      var ai = i < inner ? i : i - inner;
+      a = ai * Math.PI * 2 / Math.max(1, cnt) + ring;
+      spots.push({ x: Math.cos(a) * ring + rnd(-0.1, 0.1), z: Math.sin(a) * ring + rnd(-0.1, 0.1), h: 0 });
+    }
+  } else if (layout === 'orbit'){
+    /* a ring that circles the court while settled (see main loop) */
+    for (i = 0; i < n; i++){
+      a = i * Math.PI * 2 / n;
+      spots.push({ x: Math.cos(a) * 1.6, z: Math.sin(a) * 1.6, h: 0 });
+    }
+  } else if (layout === 'heist'){
+    /* the score stacked center, guards ringed around it */
+    var gN = 0, g = 0, c = 0;
+    stack.forEach(function(s){ if (s.guard) gN++; });
+    stack.forEach(function(s){
+      if (s.guard){
+        var ag = (g++) * Math.PI * 2 / Math.max(1, gN) + 0.4;
+        spots.push({ x: Math.cos(ag) * 1.05, z: Math.sin(ag) * 1.05, h: 0 });
+      } else spots.push({ x: 0, z: 0, h: c++ });
+    });
+  } else {
+    for (i = 0; i < n; i++) spots.push({ x: 0, z: 0, h: i });
+  }
+  return spots;
+}
 function startMatch(){
   var r = curRival();
   mark('match-start');
+  applyVenue(r.venue || 'driveway');
   /* pull staked tazos out of the binders */
   var mine = anteSel.slice().sort(function(a,b){ return b - a; })
     .map(function(i){ return run.binder.splice(i, 1)[0]; });
   r.stake.forEach(function(k){ r.binder.splice(r.binder.indexOf(k), 1); });
 
-  M = { rival: r, pot: [], yourCaps: [], rivalCaps: [], turn: 'you', slams: 0 };
-  var node = NODES[run.stage] || {};
+  M = { rival: r, pot: [], yourCaps: [], rivalCaps: [], turn: 'you', slams: 0, comboN: 0 };
+  var node = curNode() || {};
   M.field = node.field || null;
   M.wincon = node.wincon || null;
+  M.layout = node.layout || (M.wincon === 'heist' ? 'heist' : null);
   M.anteRankYou = 0; M.anteRankRival = 0;
   mine.forEach(function(e){ M.anteRankYou += rank(e.key); });
   r.stake.forEach(function(k){ M.anteRankRival += rank(k); });
   var stack = [];
   mine.forEach(function(e){ stack.push({ key: e.key, stakedBy: 'you', entry: e }); });
   r.stake.forEach(function(k){ stack.push({ key: k, stakedBy: 'rival', entry: { key: k, prov: null } }); });
+  /* wincon egg: HIS egg rides in with YOUR stake — protect it till the bell.
+     It's a house prop (guard) so it can't leak into either binder except
+     as the bell-survival trophy. */
+  if (M.wincon === 'egg')
+    stack.push({ key:'egg', stakedBy:'you', guard:true, entry:{ key:'egg', prov:'ZORP', finish:null, wear:0 } });
   /* shuffle the stack */
   for (var i = stack.length - 1; i > 0; i--){
     var j = Math.floor(Math.random() * (i + 1)), t = stack[i]; stack[i] = stack[j]; stack[j] = t;
   }
+  /* wincon heist: the pot is under guard — a manhole ring around the score */
+  if (M.wincon === 'heist')
+    for (var gi = 0; gi < 4; gi++)
+      stack.push({ key:'manhole', stakedBy:'rival', guard:true, entry:{ key:'manhole', prov:null } });
+  var spots = potSpots(stack, M.layout);
   stack.forEach(function(s, i){
     var mesh = makeDisc(s.key, TUNE.TAZO_R, TUNE.TAZO_H);
-    mesh.position.set(rnd(-0.05, 0.05), TUNE.TAZO_H/2 + i * TUNE.TAZO_H * 1.05, rnd(-0.05, 0.05));
+    var sp = spots[i];
+    mesh.position.set(sp.x + rnd(-0.04, 0.04), TUNE.TAZO_H/2 + sp.h * TUNE.TAZO_H * 1.05,
+      sp.z + rnd(-0.04, 0.04));
     mesh.rotation.y = rnd(0, Math.PI * 2);
     scene.add(mesh);
     M.pot.push({
       key: s.key, design: DESIGNS[s.key], stakedBy: s.stakedBy, entry: s.entry,
-      finish: s.entry.finish || null,
+      guard: !!s.guard, finish: s.entry.finish || null,
       mesh: mesh, vel: new THREE.Vector3(), angVel: new THREE.Vector3(),
       bR: TUNE.TAZO_R, bH: TUNE.TAZO_H,
       settled: true, captured: null, disturbed: false,
       shadow: makeShadow(TUNE.TAZO_R)
     });
   });
-  M.pot.forEach(function(t){ if (t.finish === 'static') staticize(t); });
-  /* wincon: bounty — one marked chip is worth the match */
-  if (M.wincon === 'bounty'){
-    var rchips = M.pot.filter(function(t){ return t.stakedBy === 'rival'; });
+  M.pot.forEach(function(t){
+    applyFinish(t);
+    if (t.finish === 'static') staticize(t);
+  });
+  M.pot0 = M.pot.length;
+  /* wincon: bounty/heist — one marked chip is worth the match */
+  if (M.wincon === 'bounty' || M.wincon === 'heist'){
+    var rchips = M.pot.filter(function(t){ return t.stakedBy === 'rival' && t.key !== 'manhole'; });
+    if (!rchips.length) rchips = M.pot.filter(function(t){ return t.stakedBy === 'rival'; });
     var bt = rchips[Math.floor(rnd(0, rchips.length))] || M.pot[0];
     bt.bounty = true;
-    var bring = new THREE.Mesh(
-      new THREE.RingGeometry(0.56, 0.68, 20),
-      new THREE.MeshBasicMaterial({ color: 0xf5b93d, transparent: true, opacity: 0.85,
-        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-    bring.rotation.x = -Math.PI / 2; bring.position.y = TUNE.TAZO_H;
-    bt.mesh.add(bring);
+    potRing(bt, 0xf5b93d);
     tlog('  BOUNTY on ' + bt.design.name);
+  }
+  /* wincon: egg — mark it */
+  if (M.wincon === 'egg') M.pot.forEach(function(t){
+    if (t.key === 'egg'){ t.egg = true; potRing(t, 0x9ade6a); }
+  });
+  /* field setup: wind direction / the drain */
+  if (M.field === 'wind'){
+    var wa = rnd(0, Math.PI * 2);
+    M.windX = Math.cos(wa); M.windZ = Math.sin(wa);
+  }
+  M.fieldMeshes = [];
+  if (M.field === 'drain'){
+    M.drain = { x: 1.5, z: 1.1, r: 0.62 };
+    var dhole = new THREE.Mesh(new THREE.CircleGeometry(M.drain.r, 22),
+      new THREE.MeshBasicMaterial({ color: 0x03020a }));
+    dhole.rotation.x = -Math.PI / 2;
+    dhole.position.set(M.drain.x, 0.022, M.drain.z);
+    scene.add(dhole); M.fieldMeshes.push(dhole);
+    var dring = new THREE.Mesh(new THREE.RingGeometry(M.drain.r, M.drain.r + 0.1, 22),
+      new THREE.MeshBasicMaterial({ color: 0x4a5a6e, transparent: true, opacity: 0.8, depthWrite: false }));
+    dring.rotation.x = -Math.PI / 2;
+    dring.position.set(M.drain.x, 0.024, M.drain.z);
+    scene.add(dring); M.fieldMeshes.push(dring);
+  }
+  /* rule crown: his crown chip wears the ring — flip it to break his hold */
+  M.crownLive = false;
+  if (r.rule === 'crown'){
+    M.pot.forEach(function(t){
+      if (t.key === 'crown' && t.stakedBy === 'rival'){
+        t.crown = true; M.crownLive = true;
+        potRing(t, 0x9a5ae0);
+      }
+    });
+    if (M.crownLive) tlog('  CROWN is in the pot');
   }
   /* HUD */
   el('rportrait').src = designURL(r.face);
@@ -1797,7 +2690,18 @@ function startMatch(){
   var chips = [];
   if (r.rule) chips.push('HOUSE RULE: ' + r.ruleName + ' — ' + r.ruleDesc);
   if (M.field === 'tilt') chips.push('TILTED COURT — everything drifts downhill');
+  if (M.field === 'ice') chips.push('ICED COURT — chips slide forever');
+  if (M.field === 'lowg') chips.push('LOW GRAVITY — everything floats');
+  if (M.field === 'wind') chips.push('CROSSWIND — loose chips drift with the gusts');
+  if (M.field === 'drain') chips.push('THE DRAIN — chips that settle on it are gone. forever.');
+  if (M.layout === 'multi') chips.push('SPLIT POTS');
+  if (M.layout === 'scatter') chips.push('SCATTERED POT — no stack to crack');
+  if (M.layout === 'orbit') chips.push('ORBITING POT — the pot circles the court');
   if (M.wincon === 'bounty') chips.push('BOUNTY — the marked chip is worth the match');
+  if (M.wincon === 'heist') chips.push('THE HEIST — flip the marked chip out of its guard ring');
+  if (M.wincon === 'kotc') chips.push('KING OF THE COURT — closest to center at the bell takes it all');
+  if (M.wincon === 'sudden') chips.push('SUDDEN DEATH — first flip wins the match');
+  if (M.wincon === 'egg') chips.push('THE EGG — it rides with your stake. alive at the bell = you win');
   if (chips.length){
     el('rulechip').style.display = 'inline-block';
     el('rulechip').textContent = chips.join(' · ');
@@ -1805,11 +2709,13 @@ function startMatch(){
   el('rivalcaps').innerHTML = ''; el('yourcaps').innerHTML = '';
   M.bust = makeBust(r);
   bustLean = 0; bustTarget = 0; bustBob = 0; bustRecoil = 0;
-  M.bellAt = 8 + Math.round(M.pot.length * 2.5);
+  M.bellAt = Math.max(4, Math.round((8 + M.pot.length * 2.5) * (node.bellMod || r.bellMod || 1)));
   buildPouch();
   showScreen(null);
   tlog('MATCH start vs ' + r.name + ' pot=' + M.pot.length + ' bellAt=' + M.bellAt +
-    (M.field ? ' field=' + M.field : '') + (M.wincon ? ' wincon=' + M.wincon : ''));
+    ' venue=' + venueKey +
+    (M.field ? ' field=' + M.field : '') + (M.wincon ? ' wincon=' + M.wincon : '') +
+    (M.layout ? ' layout=' + M.layout : ''));
   startCoinToss();
 }
 
@@ -1862,8 +2768,16 @@ function resolveToss(){
   var winner = ((result === 'HEADS') === (coinState.call === 'heads'))
     ? coinState.caller
     : (coinState.caller === 'you' ? 'rival' : 'you');
-  banner(result + '! ' + (winner === 'you' ? 'YOU SLAM FIRST' : M.rival.name + ' SLAMS FIRST'), 1300);
-  tlog('TOSS ' + coinState.caller + ' called ' + coinState.call + ' -> ' + result + ' -> ' + winner + ' first');
+  /* tossRig: some people simply do not lose coin tosses */
+  var rigged = M.rival.tossRig && winner !== 'rival';
+  if (rigged){
+    winner = 'rival';
+    banner(result + '! ...' + M.rival.name + ' TAKES IT ANYWAY', 1400);
+    setTimeout(function(){ bark(M.rival.barks.rule || '"i never lose the toss."'); }, 500);
+  } else {
+    banner(result + '! ' + (winner === 'you' ? 'YOU SLAM FIRST' : M.rival.name + ' SLAMS FIRST'), 1300);
+  }
+  tlog('TOSS ' + coinState.caller + ' called ' + coinState.call + ' -> ' + result + ' -> ' + winner + ' first' + (rigged ? ' (RIGGED)' : ''));
   var cRef = coin; coin = null; coinState = null;
   setTimeout(function(){
     scene.remove(cRef.mesh); dropShadow(cRef);
@@ -1908,6 +2822,7 @@ function beginTurn(side){
     if (AUTO) setTimeout(autoPlayerSlam, 250);
   } else {
     mode = 'rival';
+    M.comboBase = M.rivalCaps.length;         /* combo rule: streak snapshot */
     rivalHomeAt = performance.now() + 4000;   /* auto-home the camera */
     el('turntext').textContent = M.rival.name + "'S TURN" + bellNote;
     el('hint').style.visibility = 'hidden';
@@ -1992,6 +2907,22 @@ function sloppyAt(t){ return clamp((t - (TUNE.POW_RISE + TUNE.POW_FALL * 0.6)) /
 function doSlam(side, x, z, pow, att){
   att = att || { dx: 0, dz: 1, tilt: 0, grip: false, scatter: 0 };
   if (att.scatter){ x += rnd(-att.scatter, att.scatter); z += rnd(-att.scatter, att.scatter); }
+  /* rule nudge: sometimes the whole pot scoots after you commit */
+  if (side === 'you' && M.rival.rule === 'nudge' && Math.random() < 0.25){
+    var na = rnd(0, Math.PI * 2), nd = rnd(0.35, 0.6);
+    var ndx = Math.cos(na) * nd, ndz = Math.sin(na) * nd, nl = TUNE.ARENA_R - 0.7;
+    M.pot.forEach(function(t){
+      if (t.captured) return;
+      t.mesh.position.x = clamp(t.mesh.position.x + ndx, -nl, nl);
+      t.mesh.position.z = clamp(t.mesh.position.z + ndz, -nl, nl);
+    });
+    bark(M.rival.barks.rule);
+    sfxTick(0.06);
+    tlog('  NUDGE');
+  }
+  /* rule combo: his streaks hit harder — announce the multiplier */
+  if (side === 'rival' && M.rival.rule === 'combo' && M.comboN > 0)
+    banner('COMBO ×' + (M.comboN + 1), 900);
   var r = clamp(Math.sqrt(x*x + z*z), 0, TUNE.ARENA_R - 0.5);
   var a = Math.atan2(z, x);
   x = Math.cos(a) * r; z = Math.sin(a) * r;
@@ -2032,14 +2963,18 @@ function slamImpactAt(px, pz, pow, side, spec, mult, att){
   var R = (TUNE.IMP_R_BASE + pow * TUNE.IMP_R_POW) * (spec.radius || 1) * (1 - TUNE.EDGE_R * tilt);
   /* house rule + slammer hooks: outgoing impulse */
   var outMult = mult * (spec.imp || 1) * (grip ? TUNE.GRIP_F : 1);
-  if (M.rival.rule === 'mint' && side === 'rival') outMult *= 1.35;
+  if (side === 'rival'){
+    if (M.rival.outBoost) outMult *= M.rival.outBoost;
+    if (M.rival.rule === 'combo' && M.comboN > 0) outMult *= 1 + 0.12 * M.comboN;
+  }
   M.pot.forEach(function(t){
     if (t.captured) return;
     var d = hdist(t.mesh.position.x, t.mesh.position.z, px, pz);
     if (d > R) return;
     /* house rule + chip weight hooks: incoming impulse */
     var inMult = 1;
-    if (M.rival.rule === 'mint' && t.stakedBy === 'rival') inMult *= 0.65;
+    if (M.rival.inShield && t.stakedBy === 'rival') inMult *= M.rival.inShield;
+    if (t.finish === 'metal') inMult *= 0.75;   /* METAL finish: die-cast */
     var ph = t.design.phys || {};
     inMult *= (ph.imp || 1);
     /* LOYALTY (vision §8): rare chips fight to come home — a bounded,
@@ -2157,10 +3092,12 @@ function supportY(q, R, H){
   var ay = Math.abs(_sn.y);
   return H / 2 * ay + R * Math.sqrt(Math.max(0, 1 - ay * ay));
 }
+/* field condition: gravity multiplier (lowg floats everything) */
+function fieldGrav(){ return M && M.field === 'lowg' ? 0.45 : 1; }
 function stepTazo(t, dt){
   if (t.settling){ stepSettling(t, dt); return; }
   var p = t.mesh.position, v = t.vel;
-  v.y -= TUNE.GRAV * (t.design.phys ? (t.design.phys.grav || 1) : 1) * dt;
+  v.y -= TUNE.GRAV * (t.design.phys ? (t.design.phys.grav || 1) : 1) * fieldGrav() * dt;
   if (M && M.field === 'tilt') v.x += 3.4 * dt;   /* tilted court: downhill drift */
   p.x += v.x * dt; p.y += v.y * dt; p.z += v.z * dt;
   /* arena curb */
@@ -2206,7 +3143,9 @@ function stepTazo(t, dt){
       }
       if (v.y < 0.9 && ay > 0.85) v.y = 0;   /* only rest flat-ish; leaning chips keep tipping */
     }
-    v.x *= TUNE.FRIC_XZ; v.z *= TUNE.FRIC_XZ;
+    /* iced court: the ground barely grabs */
+    var fric = (M && M.field === 'ice') ? 0.985 : TUNE.FRIC_XZ;
+    v.x *= fric; v.z *= fric;
     t.angVel.multiplyScalar(TUNE.ANG_DAMP_GND);
     /* gravity tips a leaning chip down flat over its contact edge —
        but never pump spin past the settle threshold (a chip wedged
@@ -2224,6 +3163,12 @@ function stepTazo(t, dt){
     if (t.angVel.length() > 3){
       t.angVel.x += rnd(-1, 1) * TUNE.FLUTTER * dt;
       t.angVel.z += rnd(-1, 1) * TUNE.FLUTTER * dt;
+    }
+    /* crosswind: gusts push airborne cardboard around */
+    if (M && M.field === 'wind'){
+      var gust = 2.2 + Math.sin(slamClock * 0.9 + 1) * 1.4;
+      v.x += M.windX * gust * dt;
+      v.z += M.windZ * gust * dt;
     }
   }
   /* straggler assist: after ~4 s of live sim, friction quietly wins */
@@ -2293,6 +3238,12 @@ function finishSettle(t){
   t.settled = true;
   if (t.finish === 'static') destaticize(t);   /* the picture tunes in */
   if (!M) return;
+  /* field drain: a chip that comes to rest on the hole is gone. forever. */
+  if (M.field === 'drain' && M.drain && t.stakedBy && !t.captured &&
+      hdist(t.mesh.position.x, t.mesh.position.z, M.drain.x, M.drain.z) < M.drain.r){
+    sinkChip(t);
+    return;
+  }
   /* rest on top of any settled chip we still overlap (bead-consistent height) */
   var lift = 0;
   M.pot.forEach(function(o){
@@ -2488,6 +3439,7 @@ function isFlipped(t){
 function resolveSettled(){
   var flips = M.pot.filter(isFlipped);
   if (flips.length === 0){ maybeEndTurn(); return; }
+  capSeq = 0;   /* chain captures leave the table one at a time */
   var q = flips.slice();
   while (q.length){
     var t = q.shift();
@@ -2495,6 +3447,41 @@ function resolveSettled(){
     captureTazo(t, M.turn, q);
   }
   maybeEndTurn();
+}
+/* the drain ate it: nobody's chip now, removed from the run */
+function sinkChip(t){
+  t.captured = 'drain';
+  dropShadow(t);
+  popupAt3D(t.mesh.position, 'GLUG.', '#7fa8ff');
+  tone(220, 0.3, 'sine', 0.09, 60);
+  tlog('  DRAIN ate ' + t.design.name + ' (staked by ' + t.stakedBy + ')');
+  animCount++;
+  var t0 = null, sy = t.mesh.position.y;
+  function step(ts){
+    if (t0 === null) t0 = ts;
+    var k = Math.min(1, (ts - t0) / (AUTO ? 80 : 500));
+    t.mesh.position.y = sy - k * 0.5;
+    var sc = Math.max(0.05, 1 - k * 0.9);
+    t.mesh.scale.set(sc, sc, sc);
+    t.mesh.rotation.y += 0.18;
+    if (k < 1) nextFrame(step);
+    else {
+      scene.remove(t.mesh);
+      animCount--;
+      maybeEndTurn();
+    }
+  }
+  nextFrame(step);
+}
+/* a flip gets overturned: the chip pops back into the pot, face up */
+function returnToPot(t, txt, color){
+  t.disturbed = false; t.faceUp = true;
+  t.settled = false; t.settling = null;
+  t.mesh.rotation.set(0, rnd(0, 6.28), 0);
+  t.vel.set(rnd(-1.5, 1.5), 5.5, rnd(-1.5, 1.5));
+  t.angVel.set(0, 9, 0);
+  popupAt3D(t.mesh.position, txt, color);
+  sfxBoing();
 }
 function captureTazo(t, side, chainQ){
   /* -- rubber: chance to bounce back over -- */
@@ -2505,6 +3492,28 @@ function captureTazo(t, side, chainQ){
     popupAt3D(t.mesh.position, 'BOING!', '#7fd9c0');
     sfxBoing();
     tlog('  rubber saved: ' + t.design.name);
+    return;
+  }
+  /* -- house rules that overturn your flip, resolved before it's real:
+     veto (once a match) · tractor beam (20%) · the crown (until it falls) -- */
+  if (side === 'you' && M.rival.rule === 'veto' && !M.vetoUsed){
+    M.vetoUsed = true;
+    returnToPot(t, 'VETOED!', '#7fa8ff');
+    bark(M.rival.barks.rule);
+    tlog('  veto returned ' + t.design.name);
+    return;
+  }
+  if (side === 'you' && M.rival.rule === 'beam' && t.stakedBy === 'rival' && Math.random() < 0.2){
+    returnToPot(t, 'BEAMED UP!', '#d9ff5e');
+    bark(M.rival.barks.rule);
+    tlog('  beam returned ' + t.design.name);
+    return;
+  }
+  if (side === 'you' && M.rival.rule === 'crown' && t.stakedBy === 'rival' &&
+      M.crownLive && !M.crownDone && !t.crown){
+    returnToPot(t, 'THE CROWN HOLDS', '#f5b93d');
+    if (!M.crownBarked){ M.crownBarked = true; bark(M.rival.barks.rule); }
+    tlog('  crown returned ' + t.design.name);
     return;
   }
   t.captured = side;
@@ -2534,6 +3543,31 @@ function captureTazo(t, side, chainQ){
     M.bountyDone = side;
     banner('BOUNTY!', 1400);
     tlog('  BOUNTY taken by ' + side);
+  }
+  /* wincon egg: ANYONE flipping the egg hands ZORP the match */
+  if (t.egg && M && !M.bountyDone){
+    M.bountyDone = 'rival';
+    banner(side === 'rival' ? 'HE TOOK THE EGG!!' : 'YOU TOUCHED THE EGG!!', 1600);
+    tlog('  EGG flipped by ' + side + ' -> rival wins');
+  }
+  /* wincon sudden: first blood takes the whole match */
+  if (M && M.wincon === 'sudden' && !M.bountyDone){
+    M.bountyDone = side;
+    banner('SUDDEN DEATH!', 1400);
+    tlog('  SUDDEN first cap by ' + side);
+  }
+  /* rule crown: flipping the crown chip breaks his hold on the pot */
+  if (t.crown && M && !M.crownDone && side === 'you'){
+    M.crownDone = true;
+    banner('THE CROWN FALLS!', 1500);
+    bark(M.rival.barks.ouch);
+    tlog('  CROWN falls');
+  }
+  /* rule juice: the house takes $1 off every chip you flip */
+  if (side === 'you' && M.rival.rule === 'juice' && run.money > 0){
+    run.money = Math.max(0, run.money - 1);
+    popupAt3D(t.mesh.position, '-$1 JUICE', '#e0863d');
+    tlog('  juice -$1 -> $' + run.money);
   }
 
   var fx = t.design.effect;
@@ -2601,8 +3635,10 @@ function addCapThumb(t, side){
   img.src = designURL(t.key);
   el(side === 'you' ? 'yourcaps' : 'rivalcaps').appendChild(img);
 }
+var capSeq = 0;
 function animOut(t){
-  animCount++;
+  animCount++;   /* held BEFORE any stagger so the turn can't slip out early */
+  var delay = AUTO ? 0 : (capSeq++) * 150;
   var start = t.mesh.position.clone();
   var dir = t.captured === 'you' ? 1 : -1;
   var end = new THREE.Vector3(rnd(-1.5, 1.5), 2.2, dir * (TUNE.ARENA_R + 3.5));
@@ -2621,7 +3657,8 @@ function animOut(t){
       maybeEndTurn();
     }
   }
-  nextFrame(step);
+  if (delay) setTimeout(function(){ sfxFlip(); nextFrame(step); }, delay);
+  else nextFrame(step);
 }
 
 /* ---------- turn / match end ---------- */
@@ -2635,6 +3672,22 @@ function maybeEndTurn(){
   if (pendingBooms > 0 || animCount > 0 || pendingImps.length > 0) return;
   if (!allSettled()) return;
   if (M.pot.some(isFlipped)) return;  /* still work to do */
+  /* rule engine: at half pot, IT REBUILDS THE STACK — once */
+  if (M.rival.rule === 'engine' && !M.rebuilt && alive().length >= 2 &&
+      alive().length <= Math.ceil((M.pot0 || M.pot.length) / 2)){
+    M.rebuilt = true;
+    banner('IT REBUILDS THE STACK', 1600);
+    bark(M.rival.barks.rule);
+    camShake = 0.5;
+    sfxBoom();
+    shockwave(0, 0, 2);
+    alive().forEach(function(t, i){
+      t.settled = true; t.settling = null; t.disturbed = false; t.faceUp = true;
+      t.mesh.rotation.set(0, rnd(0, 6.28), 0);
+      t.mesh.position.set(rnd(-0.05, 0.05), TUNE.TAZO_H / 2 + i * TUNE.TAZO_H * 1.05, rnd(-0.05, 0.05));
+    });
+    tlog('  ENGINE rebuilt stack n=' + alive().length);
+  }
   /* the table is still — name the technique */
   var co = evalCallout();
   if (co) showCallout(co, M.turn);
@@ -2643,6 +3696,9 @@ function maybeEndTurn(){
     if (!M) return;
     if (M.bountyDone || alive().length === 0){ endMatch(); return; }
     if (M.slams >= M.bellAt){ ringBell(); return; }
+    /* rule combo: did his capturing streak survive the turn? */
+    if (M.turn === 'rival')
+      M.comboN = M.rivalCaps.length > (M.comboBase || 0) ? (M.comboN || 0) + 1 : 0;
     beginTurn(M.turn === 'you' ? 'rival' : 'you');
   }, AUTO ? 80 : (co ? 1050 : 550));
 }
@@ -2659,9 +3715,38 @@ function ringBell(){
   banner('THE BELL RINGS!', 1400);
   tlog('BELL at slams=' + M.slams);
   var r = M.rival;
+  /* bell-time wincons, judged before the pot goes home */
+  if (M.wincon === 'kotc' && !M.bountyDone){
+    var best = null, bd = 1e9;
+    alive().forEach(function(t){
+      var d = hdist(t.mesh.position.x, t.mesh.position.z, 0, 0);
+      if (d < bd){ bd = d; best = t; }
+    });
+    if (best){
+      M.bountyDone = best.stakedBy === 'you' ? 'you' : 'rival';
+      banner(M.bountyDone === 'you' ? 'YOUR CHIP HOLDS THE COURT!' : 'HIS CHIP HOLDS THE COURT', 1500);
+      tlog('  KOTC nearest=' + best.design.name + ' -> ' + M.bountyDone);
+    }
+  }
+  if (M.wincon === 'egg' && !M.bountyDone && alive().some(function(t){ return t.egg; })){
+    M.bountyDone = 'you';
+    banner('THE EGG SURVIVES!!', 1500);
+    tlog('  EGG survives -> you win');
+  }
   M.bellSaved = 0;
   alive().forEach(function(t){
-    if (t.stakedBy === 'you'){
+    if (t.guard && !t.egg){
+      /* house props go home with the house */
+      scene.remove(t.mesh); dropShadow(t);
+      t.captured = 'bell';
+      return;
+    }
+    if (r.rule === 'confiscate'){
+      /* rule confiscate: whatever's on his desk at the bell stays there */
+      r.binder.push(t.key);
+      M.confiscated = (M.confiscated || 0) + 1;
+      if (t.stakedBy === 'you') (M.confKeys = M.confKeys || []).push(t.key);
+    } else if (t.stakedBy === 'you'){
       t.entry.wear = (t.entry.wear || 0) + 1;   /* SURVIVOR wear: staked and lived */
       binderAdd(t.entry);
       M.bellSaved++;
@@ -2670,6 +3755,10 @@ function ringBell(){
     scene.remove(t.mesh); dropShadow(t);
     t.captured = 'bell';
   });
+  if (M.confiscated){
+    bark(r.barks.rule);
+    tlog('  confiscated ' + M.confiscated);
+  }
   setTimeout(endMatch, AUTO ? 120 : 1200);
 }
 
@@ -2683,7 +3772,8 @@ function endMatch(){
   if (M.bountyDone){
     res = M.bountyDone === 'you' ? 'win' : 'lose';
     alive().forEach(function(t){
-      if (t.stakedBy === 'you') binderAdd(t.entry);
+      if (t.guard){ /* house props vanish with the house */ }
+      else if (t.stakedBy === 'you') binderAdd(t.entry);
       else r.binder.push(t.key);
       scene.remove(t.mesh); dropShadow(t);
       t.captured = 'bounty';
@@ -2694,15 +3784,17 @@ function endMatch(){
   /* for keeps: migrate everything captured */
   var gained = [], lost = [];
   M.yourCaps.forEach(function(t){
+    if (t.egg) return;   /* you touched it — ZORP snatches it right back */
     var prov = t.stakedBy === 'rival' ? r.name : t.entry.prov;
     var wear = t.stakedBy === 'you' ? (t.entry.wear || 0) + 1 : 0;  /* reclaimed = survived */
     binderAdd({ key: t.key, prov: prov, finish: t.stakedBy === 'you' ? t.entry.finish : null, wear: wear });
     gained.push(t.key);
   });
   M.rivalCaps.forEach(function(t){
-    r.binder.push(t.key);
+    if (!t.guard) r.binder.push(t.key);   /* re-flipped house props just vanish */
     if (t.stakedBy === 'you') lost.push(t.key);
   });
+  if (M.confKeys) M.confKeys.forEach(function(k){ lost.push(k); });
 
   /* ---------- Lunch Money: itemized, earned, honest (vision §3) ---------- */
   var rlines = [];
@@ -2715,6 +3807,12 @@ function endMatch(){
   var earned = 0;
   rlines.forEach(function(l){ earned += l[1]; });
   run.money += earned;
+  run.stats.matches++;
+  if (res === 'win') run.stats.wins++;
+  run.stats.caps += y;
+  run.stats.lost += lost.length;
+  run.stats.earned += earned;
+  run.lastScore = { y: y, rv: rv, name: r.name };
   tlog('MONEY +' + earned + ' -> ' + run.money +
     ' [' + rlines.map(function(l){ return l[0] + ':' + l[1]; }).join(' ') + ']');
   var rc = el('receipt'); rc.innerHTML = '';
@@ -2754,26 +3852,28 @@ function endMatch(){
     var img = document.createElement('img'); img.src = designURL(k); img.className = 'lostimg'; ll.appendChild(img);
   });
   M.result = res;
-  el('resbtn').textContent = res === 'win' ? (run.stage >= NODES.length - 1 ? 'TAKE THE COURT' : 'BACK TO THE STREET') : 'RUN IT BACK';
+  el('resbtn').textContent = res === 'win' ? (run.stage >= COURT.length - 1 ? 'TAKE THE COURT' : 'BACK TO THE STREET') : 'RUN IT BACK';
   showScreen('result');
   if (AUTO) setTimeout(function(){ el('resbtn').click(); }, 150);
 }
 
 function onResultContinue(){
   var res = M.result, r = M.rival;
+  if (res === 'win') run.beaten.push(r.name);
   M.pot.forEach(function(t){ scene.remove(t.mesh); dropShadow(t); });
   if (M.bust) scene.remove(M.bust);
+  if (M.fieldMeshes) M.fieldMeshes.forEach(function(m){ scene.remove(m); });
   pendingImps.length = 0;
   M = null;
   if (res === 'win'){
     run.stage++;
-    if (run.stage >= NODES.length){ endRun(true); return; }
+    if (run.stage >= COURT.length){ endRun(true); return; }
     showMap();
   } else {
     /* rematch if the binder can cover it */
     if (run.binder.length === 0 || r.binder.length === 0){
       if (r.binder.length === 0){ run.stage++;  /* he's cleaned out — counts */
-        if (run.stage >= NODES.length){ endRun(true); return; }
+        if (run.stage >= COURT.length){ endRun(true); return; }
         showMap(); return;
       }
       endRun(false, 'cleaned'); return;
@@ -2782,14 +3882,44 @@ function onResultContinue(){
   }
 }
 
+/* the run's build, named by what the binder became */
+function buildName(){
+  var n = { heavy: 0, boom: 0, fx: 0, finish: 0, alien: 0, rare: 0 };
+  run.binder.forEach(function(e){
+    var d = DESIGNS[e.key];
+    if (d.phys && (d.phys.imp || 1) < 1) n.heavy++;
+    if (e.key === 'whoopee') n.boom++;
+    if (d.effect) n.fx++;
+    if (e.finish) n.finish++;
+    if (['zorbo', 'saucer', 'moonrock'].indexOf(e.key) >= 0) n.alien++;
+    if (rank(e.key) >= 2) n.rare++;
+  });
+  if (run.binder.some(function(e){ return e.key === 'crown'; })) return 'THE CROWN JEWELS';
+  if (n.alien >= 3) return 'THE AREA 51 PAGE';
+  if (n.boom >= 2) return 'THE LOUD PAGE';
+  if (n.heavy >= 3) return 'THE PAPERWEIGHT MOB';
+  if (n.finish >= 4) return 'THE SHOWCASE';
+  if (n.fx >= 4) return 'THE TRICK DECK';
+  if (run.binder.length >= 5 && n.rare >= run.binder.length * 0.6) return 'THE PREMIUM PAGE';
+  if (run.binder.length >= 18) return 'THE HOARD';
+  if (run.binder.length <= 4) return 'THE SURVIVORS';
+  return 'THE HONEST PAGE';
+}
 function endRun(won, why){
   mode = 'menu';
   mark('run-end');
   el('runendtitle').textContent = won ? 'KING OF THE COURT' : (why === 'walk' ? 'WALKED HOME' : 'CLEANED OUT');
   el('runendtitle').style.color = won ? 'var(--pop)' : 'var(--pink)';
   el('runendsub').textContent = won
-    ? 'you own the neighborhood. binder: ' + run.binder.length + ' tazos.'
+    ? 'you own the whole court — every court. binder: ' + run.binder.length + ' tazos.'
     : (why === 'walk' ? 'you kept your binder. the court keeps talking.' : 'they took everything. even the binder rings.');
+  el('runendroute').textContent = '"' + buildName() + '" — beat ' +
+    (run.beaten.length ? run.beaten.join(' → ') : 'nobody. rough day.');
+  var st = run.stats, ls = run.lastScore;
+  el('runendstats').textContent = st.matches + ' matches · ' + st.caps + ' chips flipped · ' +
+    st.lost + ' lost for keeps · $' + st.earned + ' lunch money earned' +
+    (ls ? ' · last word: ' + (won ? 'YOU TOOK IT ' + ls.y + '–' + ls.rv
+      : ls.name + ' TOOK IT ' + ls.rv + '–' + ls.y) : '');
   var b = el('runendbinder'); b.innerHTML = '';
   run.binder.forEach(function(e){
     var img = document.createElement('img'); img.src = designURL(e.key);
@@ -3025,9 +4155,11 @@ el('runendbtn').addEventListener('click', function(){
   openStacks();
 });
 el('gobtn').addEventListener('click', function(){
-  var n = NODES[run.stage];
+  var n = curNode();
   if (n.t === 'store') openStore(); else openAnte();
 });
+el('binderbtn').addEventListener('click', openBinder);
+el('binderback').addEventListener('click', showMap);
 el('leavebtn').addEventListener('click', function(){
   run.stage++;
   showMap();
@@ -3106,6 +4238,15 @@ function loop(ts){
   if (!AUTO && mode === 'drop' && slammer && !slammer.hit && slammer.mesh.position.y < 2.4){
     timeScale = Math.max(0.3, timeScale - rdt * 6);
   }
+  /* match point: the last live chip with the score in the balance
+     settles in slow motion — everybody leans in */
+  if (!AUTO && M && mode === 'sim'){
+    var mpAlive = alive();
+    if (mpAlive.length === 1 && !mpAlive[0].settled &&
+        Math.abs(M.yourCaps.length - M.rivalCaps.length) <= 1){
+      timeScale = Math.min(timeScale, 0.45);
+    }
+  }
   var dt = rdt * timeScale;
   frameN++;
   if (frameN % 60 === 0) mark('frame:' + mode);
@@ -3121,7 +4262,7 @@ function loop(ts){
     coinState.t += dt;
     if (!coin.settled) stepTazo(coin, dt);
     if (coin.shadow) syncShadow(coin.shadow, coin.mesh.position);
-    if (coinState.t > 5 && !coin.settled){
+    if (coinState.t > (M && M.field === 'lowg' ? 8 : 5) && !coin.settled){
       coin.settling = null; coin.vel.set(0, 0, 0); coin.angVel.set(0, 0, 0);
       coin.mesh.rotation.set(0, rnd(0, 6.28), 0);
       coin.mesh.position.y = TUNE.TAZO_H / 2;
@@ -3172,7 +4313,7 @@ function loop(ts){
   if (mode === 'drop' && slammer){
     var s = slammer;
     if (!s.hit){
-      s.vy -= TUNE.GRAV * dt * 0.6;
+      s.vy -= TUNE.GRAV * fieldGrav() * dt * 0.6;
       s.mesh.position.y += s.vy * dt;
       /* the grip burn: a clean release comes down hot; a perfect one
          burns up in the atmosphere */
@@ -3209,7 +4350,7 @@ function loop(ts){
       setBodyHeat(sl, sl.heat);
     }
     if (sl.phase === 'hop'){
-      sl.vy -= TUNE.GRAV * dt * 0.8;
+      sl.vy -= TUNE.GRAV * fieldGrav() * dt * 0.8;
       sl.mesh.position.y += sl.vy * dt;
       sl.mesh.position.x += sl.hvx * dt;
       sl.mesh.position.z += sl.hvz * dt;
@@ -3254,6 +4395,18 @@ function loop(ts){
         slammer = null;
       }
     }
+  }
+
+  /* layout orbit: settled chips ride the carousel through every live phase */
+  if (M && M.layout === 'orbit' && mode !== 'over' && mode !== 'menu' && mode !== 'coin'){
+    var oa = 0.25 * dt, oc = Math.cos(oa), os = Math.sin(oa);
+    M.pot.forEach(function(t){
+      if (t.captured || !t.settled) return;
+      var op = t.mesh.position;
+      var onx = op.x * oc - op.z * os, onz = op.x * os + op.z * oc;
+      op.x = onx; op.z = onz;
+      t.mesh.rotateOnWorldAxis(_upv.set(0, 1, 0), oa);
+    });
   }
 
   /* physics sim */
@@ -3341,13 +4494,28 @@ function loop(ts){
 
   updateEmbers(dt);
 
-  /* finishes: HOLO sheen moves with time and tumble; STATIC snow crawls */
+  /* finishes with a live tick: HOLO sheen, INFINITY pulse, MAGIC MOTION
+     lenticular swap; STATIC snow crawls */
   if (M){
     var hueT = ts * 0.00025;
     M.pot.forEach(function(t){
-      if (t.captured || t.finish !== 'holo') return;
-      _sn.set(0, 1, 0).applyQuaternion(t.mesh.quaternion);
-      t.mesh.material[1].emissive.setHSL((hueT + _sn.x * 0.25 + _sn.z * 0.15 + 1) % 1, 0.75, 0.15);
+      if (t.captured || !t.finish) return;
+      if (t.finish === 'holo'){
+        _sn.set(0, 1, 0).applyQuaternion(t.mesh.quaternion);
+        t.mesh.material[1].emissive.setHSL((hueT + _sn.x * 0.25 + _sn.z * 0.15 + 1) % 1, 0.75, 0.15);
+      } else if (t.finish === 'infinity'){
+        t.mesh.material[1].emissive.setHSL(0.78, 0.7, 0.1 + 0.07 * Math.sin(ts * 0.004));
+      } else if (t.finish === 'motion' && t.motionA){
+        /* lenticular: the print flips as your viewpoint crosses it */
+        _sn.set(1, 0, 0).applyQuaternion(t.mesh.quaternion);
+        var mvx = camera.position.x - t.mesh.position.x;
+        var mvz = camera.position.z - t.mesh.position.z;
+        var want = (_sn.x * mvx + _sn.z * mvz) > 0 ? t.motionA : t.motionB;
+        if (t.mesh.material[1].map !== want){
+          t.mesh.material[1].map = want;
+          t.mesh.material[1].needsUpdate = true;
+        }
+      }
     });
     if (frameN % 3 === 0) staticTex.offset.set(Math.random(), Math.random());
   }
@@ -3413,13 +4581,11 @@ nextFrame(loop);
   g.style.backgroundImage = 'url(' + cv.toDataURL() + ')';
   g.style.mixBlendMode = 'overlay';
 })();
-el('courtprev').textContent = NODES.map(function(n){
-  return n.t === 'store' ? 'CORNER STORE' : RIVALS[n.r].turf;
-}).join(' → ');
+el('courtprev').textContent = ACTS.join(' → ');
 /* knob-system harness: ?knobtest=1 forces the first node hot */
 if (/[?&]knobtest=1/.test(location.search)){
-  NODES[0].field = 'tilt';
-  NODES[0].wincon = 'bounty';
+  COURT[0].opts[0].field = 'tilt';
+  COURT[0].opts[0].wincon = 'bounty';
 }
 mark('clean');
 tlog('BOOT ok v' + VERSION);

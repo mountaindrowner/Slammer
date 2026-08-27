@@ -14,6 +14,9 @@ function openAnte(){
   el('antecount').textContent = ante;
   /* rival stake preview: first N of his binder (face up so you can size the trade) */
   r.stake = r.binder.slice(0, ante);
+  /* rule crown: the crown chip always rides in his stake */
+  if (r.rule === 'crown' && r.stake.indexOf('crown') < 0 && r.binder.indexOf('crown') >= 0)
+    r.stake[0] = 'crown';
   var pp = el('potprev'); pp.innerHTML = '';
   r.stake.forEach(function(k){
     var img = document.createElement('img');

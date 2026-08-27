@@ -215,9 +215,11 @@ el('runendbtn').addEventListener('click', function(){
   openStacks();
 });
 el('gobtn').addEventListener('click', function(){
-  var n = NODES[run.stage];
+  var n = curNode();
   if (n.t === 'store') openStore(); else openAnte();
 });
+el('binderbtn').addEventListener('click', openBinder);
+el('binderback').addEventListener('click', showMap);
 el('leavebtn').addEventListener('click', function(){
   run.stage++;
   showMap();

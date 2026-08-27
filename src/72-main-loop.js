@@ -14,6 +14,15 @@ function loop(ts){
   if (!AUTO && mode === 'drop' && slammer && !slammer.hit && slammer.mesh.position.y < 2.4){
     timeScale = Math.max(0.3, timeScale - rdt * 6);
   }
+  /* match point: the last live chip with the score in the balance
+     settles in slow motion — everybody leans in */
+  if (!AUTO && M && mode === 'sim'){
+    var mpAlive = alive();
+    if (mpAlive.length === 1 && !mpAlive[0].settled &&
+        Math.abs(M.yourCaps.length - M.rivalCaps.length) <= 1){
+      timeScale = Math.min(timeScale, 0.45);
+    }
+  }
   var dt = rdt * timeScale;
   frameN++;
   if (frameN % 60 === 0) mark('frame:' + mode);
@@ -29,7 +38,7 @@ function loop(ts){
     coinState.t += dt;
     if (!coin.settled) stepTazo(coin, dt);
     if (coin.shadow) syncShadow(coin.shadow, coin.mesh.position);
-    if (coinState.t > 5 && !coin.settled){
+    if (coinState.t > (M && M.field === 'lowg' ? 8 : 5) && !coin.settled){
       coin.settling = null; coin.vel.set(0, 0, 0); coin.angVel.set(0, 0, 0);
       coin.mesh.rotation.set(0, rnd(0, 6.28), 0);
       coin.mesh.position.y = TUNE.TAZO_H / 2;
@@ -80,7 +89,7 @@ function loop(ts){
   if (mode === 'drop' && slammer){
     var s = slammer;
     if (!s.hit){
-      s.vy -= TUNE.GRAV * dt * 0.6;
+      s.vy -= TUNE.GRAV * fieldGrav() * dt * 0.6;
       s.mesh.position.y += s.vy * dt;
       /* the grip burn: a clean release comes down hot; a perfect one
          burns up in the atmosphere */
@@ -117,7 +126,7 @@ function loop(ts){
       setBodyHeat(sl, sl.heat);
     }
     if (sl.phase === 'hop'){
-      sl.vy -= TUNE.GRAV * dt * 0.8;
+      sl.vy -= TUNE.GRAV * fieldGrav() * dt * 0.8;
       sl.mesh.position.y += sl.vy * dt;
       sl.mesh.position.x += sl.hvx * dt;
       sl.mesh.position.z += sl.hvz * dt;
@@ -162,6 +171,18 @@ function loop(ts){
         slammer = null;
       }
     }
+  }
+
+  /* layout orbit: settled chips ride the carousel through every live phase */
+  if (M && M.layout === 'orbit' && mode !== 'over' && mode !== 'menu' && mode !== 'coin'){
+    var oa = 0.25 * dt, oc = Math.cos(oa), os = Math.sin(oa);
+    M.pot.forEach(function(t){
+      if (t.captured || !t.settled) return;
+      var op = t.mesh.position;
+      var onx = op.x * oc - op.z * os, onz = op.x * os + op.z * oc;
+      op.x = onx; op.z = onz;
+      t.mesh.rotateOnWorldAxis(_upv.set(0, 1, 0), oa);
+    });
   }
 
   /* physics sim */
@@ -249,13 +270,28 @@ function loop(ts){
 
   updateEmbers(dt);
 
-  /* finishes: HOLO sheen moves with time and tumble; STATIC snow crawls */
+  /* finishes with a live tick: HOLO sheen, INFINITY pulse, MAGIC MOTION
+     lenticular swap; STATIC snow crawls */
   if (M){
     var hueT = ts * 0.00025;
     M.pot.forEach(function(t){
-      if (t.captured || t.finish !== 'holo') return;
-      _sn.set(0, 1, 0).applyQuaternion(t.mesh.quaternion);
-      t.mesh.material[1].emissive.setHSL((hueT + _sn.x * 0.25 + _sn.z * 0.15 + 1) % 1, 0.75, 0.15);
+      if (t.captured || !t.finish) return;
+      if (t.finish === 'holo'){
+        _sn.set(0, 1, 0).applyQuaternion(t.mesh.quaternion);
+        t.mesh.material[1].emissive.setHSL((hueT + _sn.x * 0.25 + _sn.z * 0.15 + 1) % 1, 0.75, 0.15);
+      } else if (t.finish === 'infinity'){
+        t.mesh.material[1].emissive.setHSL(0.78, 0.7, 0.1 + 0.07 * Math.sin(ts * 0.004));
+      } else if (t.finish === 'motion' && t.motionA){
+        /* lenticular: the print flips as your viewpoint crosses it */
+        _sn.set(1, 0, 0).applyQuaternion(t.mesh.quaternion);
+        var mvx = camera.position.x - t.mesh.position.x;
+        var mvz = camera.position.z - t.mesh.position.z;
+        var want = (_sn.x * mvx + _sn.z * mvz) > 0 ? t.motionA : t.motionB;
+        if (t.mesh.material[1].map !== want){
+          t.mesh.material[1].map = want;
+          t.mesh.material[1].needsUpdate = true;
+        }
+      }
     });
     if (frameN % 3 === 0) staticTex.offset.set(Math.random(), Math.random());
   }
@@ -321,13 +357,11 @@ nextFrame(loop);
   g.style.backgroundImage = 'url(' + cv.toDataURL() + ')';
   g.style.mixBlendMode = 'overlay';
 })();
-el('courtprev').textContent = NODES.map(function(n){
-  return n.t === 'store' ? 'CORNER STORE' : RIVALS[n.r].turf;
-}).join(' → ');
+el('courtprev').textContent = ACTS.join(' → ');
 /* knob-system harness: ?knobtest=1 forces the first node hot */
 if (/[?&]knobtest=1/.test(location.search)){
-  NODES[0].field = 'tilt';
-  NODES[0].wincon = 'bounty';
+  COURT[0].opts[0].field = 'tilt';
+  COURT[0].opts[0].wincon = 'bounty';
 }
 mark('clean');
 tlog('BOOT ok v' + VERSION);

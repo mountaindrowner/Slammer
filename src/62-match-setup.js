@@ -1,55 +1,153 @@
 /* ================================================================
    MATCH SETUP
    ================================================================ */
+/* additive ground ring parented to a marked pot chip (bounty, crown) */
+function potRing(t, color){
+  var ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.56, 0.68, 20),
+    new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.85,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = TUNE.TAZO_H;
+  t.mesh.add(ring);
+}
+/* layout -> starting spot per chip: {x, z, h(stack tier)} */
+function potSpots(stack, layout){
+  var spots = [], n = stack.length, i, a;
+  if (layout === 'multi'){
+    /* 2-3 neat stacks around center */
+    var k = n >= 8 ? 3 : 2, hs = [0, 0, 0], a0 = rnd(0, Math.PI * 2);
+    for (i = 0; i < n; i++){
+      var si = i % k; a = a0 + si * Math.PI * 2 / k;
+      spots.push({ x: Math.cos(a) * 1.35, z: Math.sin(a) * 1.35, h: hs[si]++ });
+    }
+  } else if (layout === 'scatter'){
+    /* chips strewn flat on two rings — no stack to crack */
+    var inner = Math.min(n, 5);
+    for (i = 0; i < n; i++){
+      var ring = i < inner ? 0.9 : 1.75;
+      var cnt = i < inner ? inner : n - inner;
+      var ai = i < inner ? i : i - inner;
+      a = ai * Math.PI * 2 / Math.max(1, cnt) + ring;
+      spots.push({ x: Math.cos(a) * ring + rnd(-0.1, 0.1), z: Math.sin(a) * ring + rnd(-0.1, 0.1), h: 0 });
+    }
+  } else if (layout === 'orbit'){
+    /* a ring that circles the court while settled (see main loop) */
+    for (i = 0; i < n; i++){
+      a = i * Math.PI * 2 / n;
+      spots.push({ x: Math.cos(a) * 1.6, z: Math.sin(a) * 1.6, h: 0 });
+    }
+  } else if (layout === 'heist'){
+    /* the score stacked center, guards ringed around it */
+    var gN = 0, g = 0, c = 0;
+    stack.forEach(function(s){ if (s.guard) gN++; });
+    stack.forEach(function(s){
+      if (s.guard){
+        var ag = (g++) * Math.PI * 2 / Math.max(1, gN) + 0.4;
+        spots.push({ x: Math.cos(ag) * 1.05, z: Math.sin(ag) * 1.05, h: 0 });
+      } else spots.push({ x: 0, z: 0, h: c++ });
+    });
+  } else {
+    for (i = 0; i < n; i++) spots.push({ x: 0, z: 0, h: i });
+  }
+  return spots;
+}
 function startMatch(){
   var r = curRival();
   mark('match-start');
+  applyVenue(r.venue || 'driveway');
   /* pull staked tazos out of the binders */
   var mine = anteSel.slice().sort(function(a,b){ return b - a; })
     .map(function(i){ return run.binder.splice(i, 1)[0]; });
   r.stake.forEach(function(k){ r.binder.splice(r.binder.indexOf(k), 1); });
 
-  M = { rival: r, pot: [], yourCaps: [], rivalCaps: [], turn: 'you', slams: 0 };
-  var node = NODES[run.stage] || {};
+  M = { rival: r, pot: [], yourCaps: [], rivalCaps: [], turn: 'you', slams: 0, comboN: 0 };
+  var node = curNode() || {};
   M.field = node.field || null;
   M.wincon = node.wincon || null;
+  M.layout = node.layout || (M.wincon === 'heist' ? 'heist' : null);
   M.anteRankYou = 0; M.anteRankRival = 0;
   mine.forEach(function(e){ M.anteRankYou += rank(e.key); });
   r.stake.forEach(function(k){ M.anteRankRival += rank(k); });
   var stack = [];
   mine.forEach(function(e){ stack.push({ key: e.key, stakedBy: 'you', entry: e }); });
   r.stake.forEach(function(k){ stack.push({ key: k, stakedBy: 'rival', entry: { key: k, prov: null } }); });
+  /* wincon egg: HIS egg rides in with YOUR stake — protect it till the bell.
+     It's a house prop (guard) so it can't leak into either binder except
+     as the bell-survival trophy. */
+  if (M.wincon === 'egg')
+    stack.push({ key:'egg', stakedBy:'you', guard:true, entry:{ key:'egg', prov:'ZORP', finish:null, wear:0 } });
   /* shuffle the stack */
   for (var i = stack.length - 1; i > 0; i--){
     var j = Math.floor(Math.random() * (i + 1)), t = stack[i]; stack[i] = stack[j]; stack[j] = t;
   }
+  /* wincon heist: the pot is under guard — a manhole ring around the score */
+  if (M.wincon === 'heist')
+    for (var gi = 0; gi < 4; gi++)
+      stack.push({ key:'manhole', stakedBy:'rival', guard:true, entry:{ key:'manhole', prov:null } });
+  var spots = potSpots(stack, M.layout);
   stack.forEach(function(s, i){
     var mesh = makeDisc(s.key, TUNE.TAZO_R, TUNE.TAZO_H);
-    mesh.position.set(rnd(-0.05, 0.05), TUNE.TAZO_H/2 + i * TUNE.TAZO_H * 1.05, rnd(-0.05, 0.05));
+    var sp = spots[i];
+    mesh.position.set(sp.x + rnd(-0.04, 0.04), TUNE.TAZO_H/2 + sp.h * TUNE.TAZO_H * 1.05,
+      sp.z + rnd(-0.04, 0.04));
     mesh.rotation.y = rnd(0, Math.PI * 2);
     scene.add(mesh);
     M.pot.push({
       key: s.key, design: DESIGNS[s.key], stakedBy: s.stakedBy, entry: s.entry,
-      finish: s.entry.finish || null,
+      guard: !!s.guard, finish: s.entry.finish || null,
       mesh: mesh, vel: new THREE.Vector3(), angVel: new THREE.Vector3(),
       bR: TUNE.TAZO_R, bH: TUNE.TAZO_H,
       settled: true, captured: null, disturbed: false,
       shadow: makeShadow(TUNE.TAZO_R)
     });
   });
-  M.pot.forEach(function(t){ if (t.finish === 'static') staticize(t); });
-  /* wincon: bounty — one marked chip is worth the match */
-  if (M.wincon === 'bounty'){
-    var rchips = M.pot.filter(function(t){ return t.stakedBy === 'rival'; });
+  M.pot.forEach(function(t){
+    applyFinish(t);
+    if (t.finish === 'static') staticize(t);
+  });
+  M.pot0 = M.pot.length;
+  /* wincon: bounty/heist — one marked chip is worth the match */
+  if (M.wincon === 'bounty' || M.wincon === 'heist'){
+    var rchips = M.pot.filter(function(t){ return t.stakedBy === 'rival' && t.key !== 'manhole'; });
+    if (!rchips.length) rchips = M.pot.filter(function(t){ return t.stakedBy === 'rival'; });
     var bt = rchips[Math.floor(rnd(0, rchips.length))] || M.pot[0];
     bt.bounty = true;
-    var bring = new THREE.Mesh(
-      new THREE.RingGeometry(0.56, 0.68, 20),
-      new THREE.MeshBasicMaterial({ color: 0xf5b93d, transparent: true, opacity: 0.85,
-        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-    bring.rotation.x = -Math.PI / 2; bring.position.y = TUNE.TAZO_H;
-    bt.mesh.add(bring);
+    potRing(bt, 0xf5b93d);
     tlog('  BOUNTY on ' + bt.design.name);
+  }
+  /* wincon: egg — mark it */
+  if (M.wincon === 'egg') M.pot.forEach(function(t){
+    if (t.key === 'egg'){ t.egg = true; potRing(t, 0x9ade6a); }
+  });
+  /* field setup: wind direction / the drain */
+  if (M.field === 'wind'){
+    var wa = rnd(0, Math.PI * 2);
+    M.windX = Math.cos(wa); M.windZ = Math.sin(wa);
+  }
+  M.fieldMeshes = [];
+  if (M.field === 'drain'){
+    M.drain = { x: 1.5, z: 1.1, r: 0.62 };
+    var dhole = new THREE.Mesh(new THREE.CircleGeometry(M.drain.r, 22),
+      new THREE.MeshBasicMaterial({ color: 0x03020a }));
+    dhole.rotation.x = -Math.PI / 2;
+    dhole.position.set(M.drain.x, 0.022, M.drain.z);
+    scene.add(dhole); M.fieldMeshes.push(dhole);
+    var dring = new THREE.Mesh(new THREE.RingGeometry(M.drain.r, M.drain.r + 0.1, 22),
+      new THREE.MeshBasicMaterial({ color: 0x4a5a6e, transparent: true, opacity: 0.8, depthWrite: false }));
+    dring.rotation.x = -Math.PI / 2;
+    dring.position.set(M.drain.x, 0.024, M.drain.z);
+    scene.add(dring); M.fieldMeshes.push(dring);
+  }
+  /* rule crown: his crown chip wears the ring — flip it to break his hold */
+  M.crownLive = false;
+  if (r.rule === 'crown'){
+    M.pot.forEach(function(t){
+      if (t.key === 'crown' && t.stakedBy === 'rival'){
+        t.crown = true; M.crownLive = true;
+        potRing(t, 0x9a5ae0);
+      }
+    });
+    if (M.crownLive) tlog('  CROWN is in the pot');
   }
   /* HUD */
   el('rportrait').src = designURL(r.face);
@@ -58,7 +156,18 @@ function startMatch(){
   var chips = [];
   if (r.rule) chips.push('HOUSE RULE: ' + r.ruleName + ' — ' + r.ruleDesc);
   if (M.field === 'tilt') chips.push('TILTED COURT — everything drifts downhill');
+  if (M.field === 'ice') chips.push('ICED COURT — chips slide forever');
+  if (M.field === 'lowg') chips.push('LOW GRAVITY — everything floats');
+  if (M.field === 'wind') chips.push('CROSSWIND — loose chips drift with the gusts');
+  if (M.field === 'drain') chips.push('THE DRAIN — chips that settle on it are gone. forever.');
+  if (M.layout === 'multi') chips.push('SPLIT POTS');
+  if (M.layout === 'scatter') chips.push('SCATTERED POT — no stack to crack');
+  if (M.layout === 'orbit') chips.push('ORBITING POT — the pot circles the court');
   if (M.wincon === 'bounty') chips.push('BOUNTY — the marked chip is worth the match');
+  if (M.wincon === 'heist') chips.push('THE HEIST — flip the marked chip out of its guard ring');
+  if (M.wincon === 'kotc') chips.push('KING OF THE COURT — closest to center at the bell takes it all');
+  if (M.wincon === 'sudden') chips.push('SUDDEN DEATH — first flip wins the match');
+  if (M.wincon === 'egg') chips.push('THE EGG — it rides with your stake. alive at the bell = you win');
   if (chips.length){
     el('rulechip').style.display = 'inline-block';
     el('rulechip').textContent = chips.join(' · ');
@@ -66,11 +175,13 @@ function startMatch(){
   el('rivalcaps').innerHTML = ''; el('yourcaps').innerHTML = '';
   M.bust = makeBust(r);
   bustLean = 0; bustTarget = 0; bustBob = 0; bustRecoil = 0;
-  M.bellAt = 8 + Math.round(M.pot.length * 2.5);
+  M.bellAt = Math.max(4, Math.round((8 + M.pot.length * 2.5) * (node.bellMod || r.bellMod || 1)));
   buildPouch();
   showScreen(null);
   tlog('MATCH start vs ' + r.name + ' pot=' + M.pot.length + ' bellAt=' + M.bellAt +
-    (M.field ? ' field=' + M.field : '') + (M.wincon ? ' wincon=' + M.wincon : ''));
+    ' venue=' + venueKey +
+    (M.field ? ' field=' + M.field : '') + (M.wincon ? ' wincon=' + M.wincon : '') +
+    (M.layout ? ' layout=' + M.layout : ''));
   startCoinToss();
 }
 
@@ -123,8 +234,16 @@ function resolveToss(){
   var winner = ((result === 'HEADS') === (coinState.call === 'heads'))
     ? coinState.caller
     : (coinState.caller === 'you' ? 'rival' : 'you');
-  banner(result + '! ' + (winner === 'you' ? 'YOU SLAM FIRST' : M.rival.name + ' SLAMS FIRST'), 1300);
-  tlog('TOSS ' + coinState.caller + ' called ' + coinState.call + ' -> ' + result + ' -> ' + winner + ' first');
+  /* tossRig: some people simply do not lose coin tosses */
+  var rigged = M.rival.tossRig && winner !== 'rival';
+  if (rigged){
+    winner = 'rival';
+    banner(result + '! ...' + M.rival.name + ' TAKES IT ANYWAY', 1400);
+    setTimeout(function(){ bark(M.rival.barks.rule || '"i never lose the toss."'); }, 500);
+  } else {
+    banner(result + '! ' + (winner === 'you' ? 'YOU SLAM FIRST' : M.rival.name + ' SLAMS FIRST'), 1300);
+  }
+  tlog('TOSS ' + coinState.caller + ' called ' + coinState.call + ' -> ' + result + ' -> ' + winner + ' first' + (rigged ? ' (RIGGED)' : ''));
   var cRef = coin; coin = null; coinState = null;
   setTimeout(function(){
     scene.remove(cRef.mesh); dropShadow(cRef);
@@ -169,6 +288,7 @@ function beginTurn(side){
     if (AUTO) setTimeout(autoPlayerSlam, 250);
   } else {
     mode = 'rival';
+    M.comboBase = M.rivalCaps.length;         /* combo rule: streak snapshot */
     rivalHomeAt = performance.now() + 4000;   /* auto-home the camera */
     el('turntext').textContent = M.rival.name + "'S TURN" + bellNote;
     el('hint').style.visibility = 'hidden';

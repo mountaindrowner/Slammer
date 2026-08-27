@@ -56,17 +56,20 @@ var curb = new THREE.Mesh(
   new THREE.MeshLambertMaterial({ color: 0x241d33, side: THREE.DoubleSide }));
 curb.position.y = 0.15;
 scene.add(curb);
-/* sidewalk props — cheap primitives, parallax anchors for depth */
+/* sidewalk props — cheap primitives, parallax anchors for depth.
+   The neighborhood clutter is toggleable per venue; the streetlight
+   is not — it follows you all the way to space. */
 function prop(geo, color, x, y, z, ry){
   var m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: color }));
   m.position.set(x, y, z); m.rotation.y = ry || 0;
   scene.add(m); return m;
 }
-prop(new THREE.CylinderGeometry(0.3, 0.34, 0.72, 10), 0x9a3540, 5.0, 0.36, -1.2);   /* hydrant */
-prop(new THREE.CylinderGeometry(0.15, 0.15, 0.2, 8), 0x9a3540, 5.0, 0.82, -1.2);
-prop(new THREE.BoxGeometry(0.85, 0.85, 0.85), 0x2c4a72, -4.7, 0.43, 1.8, 0.5);      /* milk crate */
-prop(new THREE.CylinderGeometry(0.15, 0.15, 0.42, 10), 0x9aa4b2, 4.35, 0.21, 2.75); /* soda can */
-prop(new THREE.BoxGeometry(0.4, 0.07, 0.1), 0xd8d2e0, 2.6, 0.04, -4.2, 0.7);        /* chalk stick */
+var courtClutter = [];
+courtClutter.push(prop(new THREE.CylinderGeometry(0.3, 0.34, 0.72, 10), 0x9a3540, 5.0, 0.36, -1.2));   /* hydrant */
+courtClutter.push(prop(new THREE.CylinderGeometry(0.15, 0.15, 0.2, 8), 0x9a3540, 5.0, 0.82, -1.2));
+courtClutter.push(prop(new THREE.BoxGeometry(0.85, 0.85, 0.85), 0x2c4a72, -4.7, 0.43, 1.8, 0.5));      /* milk crate */
+courtClutter.push(prop(new THREE.CylinderGeometry(0.15, 0.15, 0.42, 10), 0x9aa4b2, 4.35, 0.21, 2.75)); /* soda can */
+courtClutter.push(prop(new THREE.BoxGeometry(0.4, 0.07, 0.1), 0xd8d2e0, 2.6, 0.04, -4.2, 0.7));        /* chalk stick */
 /* the streetlight itself — sells the single-source night */
 prop(new THREE.CylinderGeometry(0.07, 0.09, 4.4, 8), 0x1c1826, 3.4, 2.2, -2.9);
 prop(new THREE.BoxGeometry(1.4, 0.1, 0.32), 0x1c1826, 2.85, 4.42, -2.6, -0.5);

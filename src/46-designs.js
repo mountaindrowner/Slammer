@@ -109,6 +109,41 @@ var DESIGNS = {
           {t:'dot',x:34,y:36,r:7,col:'#f06fa8'},
           {t:'ell',x:42,y:44,rx:6,ry:4,rot:0.5,col:'#ffb8d6'},
           {t:'dot',x:66,y:62,r:4,col:'#c2477e'} ] },
+  /* --- act 4 loot: alien bootlegs + the crown + the egg --- */
+  zorbo: { name:'ZORBO', rarity:'common', effect:null, fxdesc:'bootleg smiley from space', bg:['#1e3d2c','#0a1c12'],
+    art:[ {t:'dot',x:50,y:50,r:28,col:'#8fe06a'},
+          {t:'dot',x:38,y:42,r:4.5,col:'#12240e'}, {t:'dot',x:62,y:42,r:4.5,col:'#12240e'},
+          {t:'dot',x:50,y:34,r:4,col:'#12240e'},
+          {t:'arc',x:50,y:52,r:15,a0:0.5,a1:2.64,w:4,col:'#12240e'},
+          {t:'line',x0:50,y0:22,x1:50,y1:12,w:2.5,col:'#8fe06a'}, {t:'dot',x:50,y:10,r:3,col:'#d9ff5e'} ] },
+  saucer: { name:'SAUCER', rarity:'common', effect:null, fxdesc:'they mostly come at recess', bg:['#141c33','#080c1a'],
+    art:[ {t:'ell',x:50,y:52,rx:32,ry:11,col:'#8fa3ba'},
+          {t:'ell',x:50,y:44,rx:16,ry:12,col:'#bcd0e2'},
+          {t:'ell',x:50,y:42,rx:9,ry:6,col:'#2a3d5e'},
+          {t:'dot',x:28,y:52,r:2.5,col:'#ffd23f'}, {t:'dot',x:50,y:57,r:2.5,col:'#ffd23f'}, {t:'dot',x:72,y:52,r:2.5,col:'#ffd23f'},
+          {t:'line',x0:40,y0:64,x1:34,y1:80,w:2,col:'rgba(217,255,94,0.5)'},
+          {t:'line',x0:60,y0:64,x1:66,y1:80,w:2,col:'rgba(217,255,94,0.5)'} ] },
+  moonrock: { name:'MOONROCK', rarity:'rare', effect:null, fxdesc:'space heavyweight — barely budges',
+    phys:{ imp:0.6, ang:0.55 }, bg:['#3c3f4c','#191b22'],
+    art:[ {t:'dot',x:50,y:50,r:29,col:'#6d7280'},
+          {t:'dot',x:38,y:40,r:8,col:'#525663'}, {t:'ring',x:38,y:40,r:8,w:2,col:'#454956'},
+          {t:'dot',x:63,y:56,r:6,col:'#525663'}, {t:'ring',x:63,y:56,r:6,w:1.8,col:'#454956'},
+          {t:'dot',x:50,y:70,r:4,col:'#525663'},
+          {t:'dot',x:60,y:32,r:3,col:'#525663'},
+          {t:'dot',x:30,y:60,r:2.5,col:'#8a8f9e'} ] },
+  crown: { name:'THE CROWN', rarity:'legendary', effect:null, fxdesc:'heavy is the head',
+    phys:{ imp:0.85, ang:0.9 }, bg:['#3c1c4c','#1a0b24'],
+    art:[ {t:'poly',pts:[[26,66],[26,42],[38,54],[50,34],[62,54],[74,42],[74,66]],col:'#f5c542'},
+          {t:'rect',x:26,y:62,w:48,h:8,rr:3,col:'#e0a82c'},
+          {t:'dot',x:26,y:38,r:4,col:'#f5c542'}, {t:'dot',x:50,y:30,r:4.5,col:'#f5c542'}, {t:'dot',x:74,y:38,r:4,col:'#f5c542'},
+          {t:'dot',x:38,y:66,r:3,col:'#c23a56'}, {t:'dot',x:50,y:66,r:3,col:'#3fbfa8'}, {t:'dot',x:62,y:66,r:3,col:'#2b4bd4'},
+          {t:'dot',x:50,y:48,r:3.5,col:'#ffe9a0'} ] },
+  egg: { name:'THE EGG', rarity:'rare', effect:null, fxdesc:'do not touch the egg', bg:['#1c2e1a','#0b160a'],
+    art:[ {t:'arc',x:50,y:74,r:26,a0:3.34,a1:6.08,w:5,col:'#3a5a30'},
+          {t:'ell',x:50,y:50,rx:19,ry:25,col:'#cde8b0'},
+          {t:'dot',x:43,y:40,r:2.5,col:'#7da85e'}, {t:'dot',x:57,y:52,r:3,col:'#7da85e'},
+          {t:'dot',x:47,y:62,r:2,col:'#7da85e'}, {t:'dot',x:55,y:33,r:1.8,col:'#7da85e'},
+          {t:'ell',x:44,y:38,rx:5,ry:8,rot:0.4,col:'rgba(255,255,255,0.35)'} ] },
   /* --- the toss coin --- */
   coin: { name:'THE CALL', rarity:'coin', effect:null, fxdesc:'', bg:['#e8c84a','#9a7a22'],
     art:[ {t:'ring',x:50,y:50,r:30,w:3,col:'#7a5c14'},
@@ -165,6 +200,101 @@ var DESIGNS = {
           {t:'rect',x:33,y:52,w:14,h:9,rr:3,col:'#181420',str:'#c8a838',sw:1.5},
           {t:'rect',x:53,y:52,w:14,h:9,rr:3,col:'#181420',str:'#c8a838',sw:1.5},
           {t:'line',x0:47,y0:55,x1:53,y1:55,w:2,col:'#c8a838'},
-          {t:'arc',x:50,y:68,r:7,a0:3.5,a1:5.9,w:3,col:'#8d4a3a'} ] }
+          {t:'arc',x:50,y:68,r:7,a0:3.5,a1:5.9,w:3,col:'#8d4a3a'} ] },
+  face_tomboy: { name:'TOMBOY', rarity:'face', effect:null, fxdesc:'', bg:['#33261c','#170f0a'],
+    art:[ {t:'ell',x:74,y:56,rx:8,ry:16,rot:0.5,col:'#6e3a1c'},          /* ponytail */
+          {t:'dot',x:50,y:57,r:23,col:'#e8b488'},
+          {t:'wedge',x:50,y:47,r:25,a0:3.1416,a1:6.2832,col:'#d44a2c'},  /* backwards cap */
+          {t:'rect',x:24,y:44,w:24,h:8,rr:4,col:'#a8341c'},
+          {t:'dot',x:42,y:58,r:3.5,col:'#241c14'}, {t:'dot',x:58,y:58,r:3.5,col:'#241c14'},
+          {t:'dot',x:37,y:66,r:1.5,col:'rgba(150,90,50,0.7)'}, {t:'dot',x:44,y:69,r:1.5,col:'rgba(150,90,50,0.7)'},
+          {t:'dot',x:61,y:67,r:1.5,col:'rgba(150,90,50,0.7)'},
+          {t:'arc',x:51,y:64,r:9,a0:0.3,a1:2.6,w:3,col:'#8d4a3a'},
+          {t:'line',x0:34,y0:50,x1:44,y1:52,w:2.5,col:'#a8341c'} ] },
+  face_principal: { name:'THE PRINCIPAL', rarity:'face', effect:null, fxdesc:'', bg:['#2c2820','#14120c'],
+    art:[ {t:'dot',x:50,y:58,r:23,col:'#dfae84'},
+          {t:'wedge',x:50,y:50,r:25,a0:3.5,a1:5.9,col:'#dfae84'},        /* bald dome */
+          {t:'ell',x:29,y:52,rx:5,ry:9,col:'#4a3c30'}, {t:'ell',x:71,y:52,rx:5,ry:9,col:'#4a3c30'},
+          {t:'ring',x:41,y:56,r:7,w:2,col:'#2a2018'}, {t:'ring',x:59,y:56,r:7,w:2,col:'#2a2018'},
+          {t:'line',x0:48,y0:56,x1:52,y1:56,w:2,col:'#2a2018'},
+          {t:'dot',x:41,y:56,r:3,col:'#241c14'}, {t:'dot',x:59,y:56,r:3,col:'#241c14'},
+          {t:'arc',x:50,y:74,r:8,a0:3.6,a1:5.8,w:3,col:'#8d4a3a'},       /* the frown */
+          {t:'rect',x:44,y:84,w:12,h:12,rr:2,col:'#6e2c2c'} ] },
+  face_joystick: { name:'JOYSTICK', rarity:'face', effect:null, fxdesc:'', bg:['#1c1233','#0b081c'],
+    art:[ {t:'dot',x:50,y:58,r:23,col:'#e8c49a'},
+          {t:'wedge',x:50,y:48,r:25,a0:3.1416,a1:6.2832,col:'#b14aed'},
+          {t:'rect',x:24,y:44,w:52,h:7,rr:3,col:'#8a2cc0'},
+          {t:'dot',x:26,y:56,r:7,col:'#2a2038'}, {t:'dot',x:74,y:56,r:7,col:'#2a2038'},  /* headphones */
+          {t:'ring',x:26,y:56,r:7,w:2,col:'#b14aed'}, {t:'ring',x:74,y:56,r:7,w:2,col:'#b14aed'},
+          {t:'dot',x:42,y:57,r:3.5,col:'#241c14'}, {t:'dot',x:58,y:57,r:3.5,col:'#241c14'},
+          {t:'arc',x:50,y:63,r:10,a0:0.4,a1:2.7,w:3.5,col:'#8d4a3a'},    /* huge grin */
+          {t:'dot',x:44,y:69,r:1.6,col:'rgba(177,74,237,0.6)'}, {t:'dot',x:58,y:70,r:1.6,col:'rgba(63,191,168,0.6)'} ] },
+  face_knuckles: { name:'KNUCKLES', rarity:'face', effect:null, fxdesc:'', bg:['#241c14','#100c08'],
+    art:[ {t:'rect',x:28,y:38,w:44,h:44,rr:14,col:'#d8a078'},            /* the jaw */
+          {t:'wedge',x:50,y:44,r:24,a0:3.3,a1:6.1,col:'#1c1826'},        /* fedora brim-shadow */
+          {t:'rect',x:26,y:26,w:48,h:10,rr:4,col:'#1c1826'},
+          {t:'rect',x:32,y:14,w:36,h:14,rr:5,col:'#241c30'},
+          {t:'line',x0:36,y0:52,x1:46,y1:54,w:3,col:'#241c14'},          /* heavy brows */
+          {t:'line',x0:54,y0:54,x1:64,y1:52,w:3,col:'#241c14'},
+          {t:'dot',x:41,y:58,r:2.5,col:'#241c14'}, {t:'dot',x:59,y:58,r:2.5,col:'#241c14'},
+          {t:'line',x0:42,y0:74,x1:58,y1:74,w:3,col:'#6e3a2c'},
+          {t:'dot',x:55,y:76,r:2,col:'#f5c542'},                          /* gold tooth */
+          {t:'dot',x:36,y:68,r:1,col:'#4a3428'}, {t:'dot',x:40,y:71,r:1,col:'#4a3428'},
+          {t:'dot',x:62,y:69,r:1,col:'#4a3428'}, {t:'dot',x:58,y:66,r:1,col:'#4a3428'} ] },
+  face_mayor: { name:'THE MAYOR', rarity:'face', effect:null, fxdesc:'', bg:['#1c2440','#0c1020'],
+    art:[ {t:'dot',x:50,y:58,r:23,col:'#f0be8e'},
+          {t:'wedge',x:50,y:46,r:26,a0:3.1416,a1:6.2832,col:'#9aa4b2'},  /* silver pompadour */
+          {t:'ell',x:50,y:34,rx:16,ry:9,col:'#9aa4b2'},
+          {t:'dot',x:42,y:57,r:3.5,col:'#241c14'}, {t:'dot',x:58,y:57,r:3.5,col:'#241c14'},
+          {t:'arc',x:50,y:63,r:11,a0:0.35,a1:2.8,w:4,col:'#c2726a'},     /* politician grin */
+          {t:'line',x0:39,y0:65,x1:61,y1:65,w:2,col:'#fff'},             /* the teeth */
+          {t:'rect',x:24,y:82,w:52,h:14,rr:4,col:'#3a2c5e'},
+          {t:'poly',pts:[[24,82],[76,96],[76,88],[24,74]],col:'#c0202c'} ] },  /* the sash */
+  face_president: { name:'THE PRESIDENT', rarity:'face', effect:null, fxdesc:'', bg:['#141c30','#080c18'],
+    art:[ {t:'dot',x:50,y:58,r:23,col:'#f0c29a'},
+          {t:'wedge',x:50,y:46,r:26,a0:3.1416,a1:6.2832,col:'#d8d2e0'},  /* silver helmet-hair */
+          {t:'line',x0:36,y0:52,x1:46,y1:54,w:3.5,col:'#8a8494'},        /* stern brows */
+          {t:'line',x0:54,y0:54,x1:64,y1:52,w:3.5,col:'#8a8494'},
+          {t:'dot',x:42,y:59,r:3,col:'#241c14'}, {t:'dot',x:58,y:59,r:3,col:'#241c14'},
+          {t:'line',x0:43,y0:72,x1:57,y1:72,w:3,col:'#8d4a3a'},          /* the line of state */
+          {t:'rect',x:26,y:82,w:48,h:14,rr:4,col:'#1c2a4c'},
+          {t:'poly',pts:[[47,82],[53,82],[51,96],[49,96]],col:'#c0202c'}, /* the tie */
+          {t:'dot',x:33,y:87,r:3,col:'#f5c542'} ] },                      /* the pin */
+  face_zib: { name:'ZIB', rarity:'face', effect:null, fxdesc:'', bg:['#0f2418','#06120a'],
+    art:[ {t:'line',x0:38,y0:26,x1:32,y1:12,w:2,col:'#7ed957'}, {t:'dot',x:32,y:10,r:3,col:'#d9ff5e'},
+          {t:'line',x0:62,y0:26,x1:68,y1:12,w:2,col:'#7ed957'}, {t:'dot',x:68,y:10,r:3,col:'#d9ff5e'},
+          {t:'ell',x:50,y:50,rx:24,ry:29,col:'#7ed957'},
+          {t:'ell',x:40,y:48,rx:8.5,ry:14,rot:0.4,col:'#0a1408'}, {t:'ell',x:60,y:48,rx:8.5,ry:14,rot:-0.4,col:'#0a1408'},
+          {t:'dot',x:43,y:44,r:2.5,col:'rgba(217,255,94,0.8)'}, {t:'dot',x:63,y:44,r:2.5,col:'rgba(217,255,94,0.8)'},
+          {t:'arc',x:50,y:68,r:5,a0:0.6,a1:2.5,w:2,col:'#0a1408'} ] },
+  face_zorp: { name:'ZORP', rarity:'face', effect:null, fxdesc:'', bg:['#122814','#08140a'],
+    art:[ {t:'line',x0:34,y0:24,x1:26,y1:10,w:2.5,col:'#9ade6a'}, {t:'dot',x:26,y:8,r:3.5,col:'#d9ff5e'},
+          {t:'line',x0:50,y0:20,x1:50,y1:6,w:2.5,col:'#9ade6a'}, {t:'dot',x:50,y:5,r:3.5,col:'#d9ff5e'},
+          {t:'line',x0:66,y0:24,x1:74,y1:10,w:2.5,col:'#9ade6a'}, {t:'dot',x:74,y:8,r:3.5,col:'#d9ff5e'},
+          {t:'ell',x:50,y:52,rx:27,ry:28,col:'#9ade6a'},
+          {t:'ell',x:36,y:48,rx:7,ry:10,rot:0.3,col:'#0c1808'},
+          {t:'ell',x:50,y:44,rx:7,ry:11,col:'#0c1808'},
+          {t:'ell',x:64,y:48,rx:7,ry:10,rot:-0.3,col:'#0c1808'},
+          {t:'arc',x:50,y:70,r:8,a0:3.6,a1:5.8,w:2.5,col:'#0c1808'},     /* the frown */
+          {t:'ell',x:78,y:82,rx:9,ry:12,col:'#cde8b0'} ] },               /* the egg, held close */
+  face_overlord: { name:'THE OVERLORD', rarity:'face', effect:null, fxdesc:'', bg:['#241033','#10071a'],
+    art:[ {t:'poly',pts:[[30,30],[30,16],[40,25],[50,10],[60,25],[70,16],[70,30]],col:'#f5c542'},
+          {t:'ell',x:50,y:54,rx:24,ry:27,col:'#9a5ae0'},
+          {t:'ell',x:40,y:50,rx:8,ry:12,rot:0.35,col:'#1a0b24'}, {t:'ell',x:60,y:50,rx:8,ry:12,rot:-0.35,col:'#1a0b24'},
+          {t:'dot',x:41,y:47,r:2.5,col:'#ff4b3d'}, {t:'dot',x:61,y:47,r:2.5,col:'#ff4b3d'},
+          {t:'arc',x:50,y:70,r:7,a0:3.5,a1:5.9,w:2.5,col:'#1a0b24'},
+          {t:'dot',x:30,y:14,r:2.5,col:'#ffe9a0'}, {t:'dot',x:50,y:8,r:3,col:'#ffe9a0'}, {t:'dot',x:70,y:14,r:2.5,col:'#ffe9a0'} ] },
+  face_engine: { name:'THE ENGINE', rarity:'face', effect:null, fxdesc:'', bg:['#1a2028','#0a0e14'],
+    art:[ {t:'line',x0:50,y0:22,x1:50,y1:8,w:2.5,col:'#55677d'}, {t:'dot',x:50,y:7,r:3,col:'#ff4b3d'},
+          {t:'rect',x:26,y:24,w:48,h:52,rr:8,col:'#8fa3ba'},
+          {t:'rect',x:31,y:38,w:38,h:14,rr:4,col:'#160a0e'},
+          {t:'rect',x:34,y:41,w:14,h:8,rr:2,col:'#ff4b3d'},
+          {t:'rect',x:52,y:41,w:14,h:8,rr:2,col:'#ff4b3d'},
+          {t:'rect',x:34,y:60,w:32,h:6,rr:2,col:'#3c4654'},
+          {t:'line',x0:36,y0:63,x1:40,y1:63,w:3,col:'#ff8a30'}, {t:'line',x0:46,y0:63,x1:52,y1:63,w:3,col:'#ff8a30'},
+          {t:'dot',x:31,y:29,r:1.8,col:'#55677d'}, {t:'dot',x:69,y:29,r:1.8,col:'#55677d'},
+          {t:'dot',x:31,y:71,r:1.8,col:'#55677d'}, {t:'dot',x:69,y:71,r:1.8,col:'#55677d'},
+          {t:'line',x0:26,y0:84,x1:74,y1:84,w:3,col:'#3c4654'},
+          {t:'line',x0:30,y0:90,x1:70,y1:90,w:2,col:'rgba(255,75,61,0.5)'} ] }
 };
 

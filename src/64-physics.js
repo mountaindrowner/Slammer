@@ -16,6 +16,22 @@ function sloppyAt(t){ return clamp((t - (TUNE.POW_RISE + TUNE.POW_FALL * 0.6)) /
 function doSlam(side, x, z, pow, att){
   att = att || { dx: 0, dz: 1, tilt: 0, grip: false, scatter: 0 };
   if (att.scatter){ x += rnd(-att.scatter, att.scatter); z += rnd(-att.scatter, att.scatter); }
+  /* rule nudge: sometimes the whole pot scoots after you commit */
+  if (side === 'you' && M.rival.rule === 'nudge' && Math.random() < 0.25){
+    var na = rnd(0, Math.PI * 2), nd = rnd(0.35, 0.6);
+    var ndx = Math.cos(na) * nd, ndz = Math.sin(na) * nd, nl = TUNE.ARENA_R - 0.7;
+    M.pot.forEach(function(t){
+      if (t.captured) return;
+      t.mesh.position.x = clamp(t.mesh.position.x + ndx, -nl, nl);
+      t.mesh.position.z = clamp(t.mesh.position.z + ndz, -nl, nl);
+    });
+    bark(M.rival.barks.rule);
+    sfxTick(0.06);
+    tlog('  NUDGE');
+  }
+  /* rule combo: his streaks hit harder — announce the multiplier */
+  if (side === 'rival' && M.rival.rule === 'combo' && M.comboN > 0)
+    banner('COMBO ×' + (M.comboN + 1), 900);
   var r = clamp(Math.sqrt(x*x + z*z), 0, TUNE.ARENA_R - 0.5);
   var a = Math.atan2(z, x);
   x = Math.cos(a) * r; z = Math.sin(a) * r;
@@ -56,14 +72,18 @@ function slamImpactAt(px, pz, pow, side, spec, mult, att){
   var R = (TUNE.IMP_R_BASE + pow * TUNE.IMP_R_POW) * (spec.radius || 1) * (1 - TUNE.EDGE_R * tilt);
   /* house rule + slammer hooks: outgoing impulse */
   var outMult = mult * (spec.imp || 1) * (grip ? TUNE.GRIP_F : 1);
-  if (M.rival.rule === 'mint' && side === 'rival') outMult *= 1.35;
+  if (side === 'rival'){
+    if (M.rival.outBoost) outMult *= M.rival.outBoost;
+    if (M.rival.rule === 'combo' && M.comboN > 0) outMult *= 1 + 0.12 * M.comboN;
+  }
   M.pot.forEach(function(t){
     if (t.captured) return;
     var d = hdist(t.mesh.position.x, t.mesh.position.z, px, pz);
     if (d > R) return;
     /* house rule + chip weight hooks: incoming impulse */
     var inMult = 1;
-    if (M.rival.rule === 'mint' && t.stakedBy === 'rival') inMult *= 0.65;
+    if (M.rival.inShield && t.stakedBy === 'rival') inMult *= M.rival.inShield;
+    if (t.finish === 'metal') inMult *= 0.75;   /* METAL finish: die-cast */
     var ph = t.design.phys || {};
     inMult *= (ph.imp || 1);
     /* LOYALTY (vision §8): rare chips fight to come home — a bounded,
@@ -181,10 +201,12 @@ function supportY(q, R, H){
   var ay = Math.abs(_sn.y);
   return H / 2 * ay + R * Math.sqrt(Math.max(0, 1 - ay * ay));
 }
+/* field condition: gravity multiplier (lowg floats everything) */
+function fieldGrav(){ return M && M.field === 'lowg' ? 0.45 : 1; }
 function stepTazo(t, dt){
   if (t.settling){ stepSettling(t, dt); return; }
   var p = t.mesh.position, v = t.vel;
-  v.y -= TUNE.GRAV * (t.design.phys ? (t.design.phys.grav || 1) : 1) * dt;
+  v.y -= TUNE.GRAV * (t.design.phys ? (t.design.phys.grav || 1) : 1) * fieldGrav() * dt;
   if (M && M.field === 'tilt') v.x += 3.4 * dt;   /* tilted court: downhill drift */
   p.x += v.x * dt; p.y += v.y * dt; p.z += v.z * dt;
   /* arena curb */
@@ -230,7 +252,9 @@ function stepTazo(t, dt){
       }
       if (v.y < 0.9 && ay > 0.85) v.y = 0;   /* only rest flat-ish; leaning chips keep tipping */
     }
-    v.x *= TUNE.FRIC_XZ; v.z *= TUNE.FRIC_XZ;
+    /* iced court: the ground barely grabs */
+    var fric = (M && M.field === 'ice') ? 0.985 : TUNE.FRIC_XZ;
+    v.x *= fric; v.z *= fric;
     t.angVel.multiplyScalar(TUNE.ANG_DAMP_GND);
     /* gravity tips a leaning chip down flat over its contact edge —
        but never pump spin past the settle threshold (a chip wedged
@@ -248,6 +272,12 @@ function stepTazo(t, dt){
     if (t.angVel.length() > 3){
       t.angVel.x += rnd(-1, 1) * TUNE.FLUTTER * dt;
       t.angVel.z += rnd(-1, 1) * TUNE.FLUTTER * dt;
+    }
+    /* crosswind: gusts push airborne cardboard around */
+    if (M && M.field === 'wind'){
+      var gust = 2.2 + Math.sin(slamClock * 0.9 + 1) * 1.4;
+      v.x += M.windX * gust * dt;
+      v.z += M.windZ * gust * dt;
     }
   }
   /* straggler assist: after ~4 s of live sim, friction quietly wins */
@@ -317,6 +347,12 @@ function finishSettle(t){
   t.settled = true;
   if (t.finish === 'static') destaticize(t);   /* the picture tunes in */
   if (!M) return;
+  /* field drain: a chip that comes to rest on the hole is gone. forever. */
+  if (M.field === 'drain' && M.drain && t.stakedBy && !t.captured &&
+      hdist(t.mesh.position.x, t.mesh.position.z, M.drain.x, M.drain.z) < M.drain.r){
+    sinkChip(t);
+    return;
+  }
   /* rest on top of any settled chip we still overlap (bead-consistent height) */
   var lift = 0;
   M.pot.forEach(function(o){

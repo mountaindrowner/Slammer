@@ -79,9 +79,11 @@ function paintDesign(key){
   tex.minFilter = THREE.LinearFilter;
   tex.generateMipmaps = false;
   texCache[key] = tex;
+  cvCache[key] = cv;
   urlCache[key] = cv.toDataURL();
   return tex;
 }
+var cvCache = {};
 function designURL(key){ paintDesign(key); return urlCache[key]; }
 function shade(hex, f){
   var n = parseInt(hex.slice(1), 16);
@@ -164,15 +166,52 @@ function makeBust(r){
     m.position.set(x, y, z); if (ry) m.rotation.y = ry;
     parent.add(m); return m;
   }
+  function glow(parent, w, h, d2, col, x, y, z){
+    var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d2),
+      new THREE.MeshBasicMaterial({ color: col }));
+    m.position.set(x, y, z);
+    parent.add(m); return m;
+  }
   part(g, 2.0, 0.85, 0.8, B.jacket, 0, 0.42, 0);       /* shoulders */
   part(g, 1.0, 1.05, 0.95, B.skin, 0, 1.35, 0);        /* head */
-  part(g, 0.22, 0.3, 0.2, B.skin, 0, 1.2, 0.52);       /* nose */
-  part(g, 0.42, 0.09, 0.06, 0x8d4a3a, 0, 0.98, 0.5);   /* mouth */
+  if (B.style !== 'machine'){
+    part(g, 0.22, 0.3, 0.2, B.skin, 0, 1.2, 0.52);     /* nose */
+    part(g, 0.42, 0.09, 0.06, B.style === 'alien' ? 0x0c1808 : 0x8d4a3a, 0, 0.98, 0.5);
+  }
   if (B.style === 'shades'){
     part(g, 0.88, 0.24, 0.1, 0x14100c, 0, 1.5, 0.52);
     part(g, 0.94, 0.05, 0.06, 0xc8a838, 0, 1.63, 0.52);
     part(g, 1.12, 0.4, 1.05, B.cap, 0, 2.0, 0);        /* blond mop */
     part(g, 1.12, 0.3, 0.16, B.cap, 0, 1.82, 0.5);
+  } else if (B.style === 'tie'){
+    /* the suits: flat hair, collar, tie — school, mob, or state */
+    part(g, 0.17, 0.2, 0.06, 0x1c140c, -0.24, 1.5, 0.52);
+    part(g, 0.17, 0.2, 0.06, 0x1c140c, 0.24, 1.5, 0.52);
+    part(g, 1.06, 0.28, 1.0, B.cap, 0, 1.96, 0);
+    part(g, 0.52, 0.16, 0.12, 0xe9e2f0, 0, 0.8, 0.42);
+    part(g, 0.2, 0.5, 0.08, B.tie || 0xc0202c, 0, 0.52, 0.44);
+  } else if (B.style === 'alien'){
+    /* big wraparound eyes, antennae — crown optional */
+    part(g, 0.3, 0.42, 0.1, 0x0c1808, -0.26, 1.44, 0.5);
+    part(g, 0.3, 0.42, 0.1, 0x0c1808, 0.26, 1.44, 0.5);
+    part(g, 0.05, 0.5, 0.05, B.cap, -0.3, 2.05, 0);
+    glow(g, 0.13, 0.13, 0.13, 0xd9ff5e, -0.3, 2.34, 0);
+    part(g, 0.05, 0.5, 0.05, B.cap, 0.3, 2.05, 0);
+    glow(g, 0.13, 0.13, 0.13, 0xd9ff5e, 0.3, 2.34, 0);
+    if (B.crown){
+      part(g, 1.08, 0.16, 1.0, 0xe0bd4e, 0, 1.94, 0);
+      part(g, 0.16, 0.3, 0.16, 0xe0bd4e, -0.34, 2.1, 0);
+      part(g, 0.16, 0.4, 0.16, 0xe0bd4e, 0, 2.14, 0);
+      part(g, 0.16, 0.3, 0.16, 0xe0bd4e, 0.34, 2.1, 0);
+    }
+  } else if (B.style === 'machine'){
+    /* the finale: eye bar, grille, antenna, shoulder stacks */
+    glow(g, 0.72, 0.16, 0.08, 0xff4b3d, 0, 1.46, 0.5);
+    part(g, 0.6, 0.12, 0.08, 0x3c4654, 0, 1.0, 0.5);
+    part(g, 0.06, 0.5, 0.06, 0x55677d, 0, 2.1, 0);
+    glow(g, 0.13, 0.13, 0.13, 0xff4b3d, 0, 2.4, 0);
+    part(g, 0.26, 0.55, 0.26, 0x55677d, -0.85, 0.92, 0);
+    part(g, 0.26, 0.55, 0.26, 0x55677d, 0.85, 0.92, 0);
   } else {
     part(g, 0.17, 0.2, 0.06, 0x1c140c, -0.24, 1.5, 0.52);
     part(g, 0.17, 0.2, 0.06, 0x1c140c, 0.24, 1.5, 0.52);
@@ -180,6 +219,7 @@ function makeBust(r){
     part(hat, 1.08, 0.42, 1.02, B.cap, 0, 1.98, 0);    /* cap crown */
     part(hat, 0.9, 0.1, 0.6, B.cap, 0, 1.82, 0.72);    /* brim */
     if (B.style === 'side') hat.rotation.y = 1.05;
+    if (B.style === 'back') hat.rotation.y = Math.PI;  /* worn backwards */
     g.add(hat);
   }
   g.scale.set(1.5, 1.5, 1.5);
@@ -188,6 +228,90 @@ function makeBust(r){
   return g;
 }
 
+
+/* ================================================================
+   FINISHES (vision §8) — instance data on the binder entry, resolved
+   to material tweaks / texture variants here. 11 total:
+   HOLO, STATIC, SURVIVOR (wear), METAL, GLOW, MAGIC MOTION, POP-UP,
+   WET INK, X-RAY, INFINITY, MISPRINT.
+   ================================================================ */
+var finishTexCache = {};
+function finishTex(key, kind){
+  var ck = key + ':' + kind;
+  if (finishTexCache[ck]) return finishTexCache[ck];
+  paintDesign(key);                      /* ensure the base canvas exists */
+  var base = cvCache[key], S = base.width;
+  var cv = document.createElement('canvas'); cv.width = cv.height = S;
+  var c = cv.getContext('2d');
+  if (kind === 'xray'){
+    /* the back tells the truth, in negative */
+    c.drawImage(base, 0, 0);
+    c.globalCompositeOperation = 'difference';
+    c.fillStyle = '#fff'; c.fillRect(0, 0, S, S);
+  } else if (kind === 'wetink'){
+    /* pulled from the press too soon */
+    c.drawImage(base, 0, 0);
+    c.globalAlpha = 0.4;
+    c.drawImage(base, 7, 5);
+    c.globalAlpha = 0.22;
+    c.drawImage(base, -5, 9);
+  } else if (kind === 'misprint'){
+    /* the plates never lined up */
+    c.drawImage(base, 0, 0);
+    c.globalCompositeOperation = 'screen';
+    c.globalAlpha = 0.5;
+    c.drawImage(base, 6, 2);
+    c.globalAlpha = 0.35;
+    c.drawImage(base, -6, -2);
+  } else if (kind === 'motion'){
+    /* frame B of the lenticular: the world, mirrored */
+    c.translate(S, 0); c.scale(-1, 1);
+    c.drawImage(base, 0, 0);
+  }
+  var t = new THREE.CanvasTexture(cv);
+  t.minFilter = THREE.LinearFilter; t.generateMipmaps = false;
+  finishTexCache[ck] = t;
+  return t;
+}
+/* pot-chip hook: applied once at match setup (materials are per-disc) */
+function applyFinish(t){
+  var f = t.finish, m = t.mesh.material;
+  if (!f) return;
+  if (f === 'metal'){
+    m[1].shininess = 95; m[1].specular = new THREE.Color(0xdfe8f2);
+    m[0].shininess = 80; m[0].specular = new THREE.Color(0xbcc8d4);
+  } else if (f === 'glow'){
+    m[1].emissive = new THREE.Color(0x1c4a34);
+  } else if (f === 'xray'){
+    m[2].map = finishTex(t.key, 'xray'); m[2].needsUpdate = true;
+  } else if (f === 'wetink'){
+    m[1].map = finishTex(t.key, 'wetink'); m[1].needsUpdate = true;
+  } else if (f === 'misprint'){
+    m[1].map = finishTex(t.key, 'misprint'); m[1].needsUpdate = true;
+  } else if (f === 'motion'){
+    t.motionA = m[1].map;
+    t.motionB = finishTex(t.key, 'motion');
+  } else if (f === 'popup'){
+    /* the art floats off the cap — child plane, real parallax */
+    var pp = new THREE.Mesh(
+      new THREE.CircleGeometry(t.bR * 0.62, 20),
+      new THREE.MeshBasicMaterial({ map: paintDesign(t.key), transparent: true,
+        opacity: 0.95, depthWrite: false }));
+    pp.rotation.x = -Math.PI / 2;
+    pp.position.y = t.bH / 2 + 0.05;
+    t.mesh.add(pp);
+  } else if (f === 'infinity'){
+    m[1].emissive = new THREE.Color(0x30104a);   /* pulsed in the loop */
+    var ir = new THREE.Mesh(
+      new THREE.RingGeometry(t.bR * 0.72, t.bR * 0.82, 22),
+      new THREE.MeshBasicMaterial({ color: 0xb14aed, transparent: true, opacity: 0.7,
+        blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    ir.rotation.x = -Math.PI / 2;
+    ir.position.y = t.bH / 2 + 0.015;
+    t.mesh.add(ir);
+  }
+  /* holo + static resolve in the main loop / settle pipeline */
+}
 
 /* ---------- finishes (vision §8): STATIC + HOLO support ---------- */
 var staticTex = (function(){

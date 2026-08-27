@@ -10,24 +10,42 @@ var aimPos = { x: 0, z: 0 }, aimT = 0, power = 0;
 var rivalPlan = null;
 var bannerTimer = null, barkTimer = null;
 
+/* ?stage=N — debug/harness start: jump the court, pad the war chest */
+var DBG_STAGE = (function(){
+  var m = location.search.match(/[?&]stage=(\d+)/);
+  return m ? parseInt(m[1], 10) : 0;
+})();
 function newRun(stackKey){
   var stack = STACKS[stackKey || 'sandlot'];
+  var rivals = {};
+  Object.keys(RIVALS).forEach(function(k){
+    var r = RIVALS[k], c = {};
+    for (var kk in r) c[kk] = r[kk];
+    c.binder = r.binder.slice();
+    rivals[k] = c;
+  });
   run = {
     stackKey: stackKey || 'sandlot',
     binder: stack.binder.map(function(k){ return { key: k, prov: null, finish: null, wear: 0 }; }),
     stage: 0,
+    path: {},                    /* forks taken: stage index -> option index */
     money: 0,                    /* Lunch Money — the earned build budget */
     pouch: stack.pouch.slice(),
     slammer: stack.pouch[0],
     rumorKnown: false,
-    rivals: RIVALS.map(function(r){
-      var c = {}; for (var k in r) c[k] = r[k];
-      c.binder = r.binder.slice();
-      return c;
-    })
+    beaten: [],
+    stats: { matches: 0, wins: 0, caps: 0, lost: 0, earned: 0 },
+    rivals: rivals
   };
+  if (DBG_STAGE){
+    run.stage = Math.min(DBG_STAGE, COURT.length - 1);
+    run.money = 25;
+    ['mecha','manhole','magnet','rubber','double','whoopee','feather','gum','star','skull']
+      .forEach(function(k){ run.binder.push({ key: k, prov: null, finish: null, wear: 0 }); });
+    tlog('DEBUG start at stage ' + run.stage);
+  }
 }
-function curRival(){ return run.rivals[NODES[run.stage].r]; }
+function curRival(){ return run.rivals[curNode().r]; }
 /* every chip that enters the Binder is recorded in the all-time Collection */
 function binderAdd(entry){
   run.binder.push(entry);
@@ -40,35 +58,96 @@ function binderAdd(entry){
 
 /* ---------- screens ---------- */
 function showScreen(id){
-  ['title','stacks','collection','ante','result','runend','map','store'].forEach(function(s){
+  ['title','stacks','collection','ante','result','runend','map','store','binder'].forEach(function(s){
     el(s).classList.toggle('show', s === id);
   });
   el('hud').classList.toggle('show', id === null);
 }
 
-/* ---------- court map ---------- */
+/* ---------- the in-run Binder: what you carry, where it came from ---------- */
+function openBinder(){
+  el('bindersub').textContent = run.binder.length + ' chips · LUNCH MONEY $' + run.money;
+  var g = el('rbgrid'); g.innerHTML = '';
+  run.binder.forEach(function(entry){
+    var d = DESIGNS[entry.key];
+    var card = document.createElement('div');
+    card.className = 'tz ' + d.rarity;
+    var line = d.fxdesc || (entry.prov ? 'won off ' + entry.prov : 'from the starter page');
+    card.innerHTML = '<img src="' + designURL(entry.key) + '"' +
+      ((entry.wear || 0) >= 3 ? ' style="filter:grayscale(.25) contrast(.92)"' : '') +
+      '><div class="nm">' + d.name + '</div><div class="fx">' + line + '</div>' +
+      (entry.prov && d.fxdesc ? '<div class="fx" style="color:var(--pop)">won off ' + entry.prov + '</div>' : '') +
+      (entry.finish ? '<div class="fnsh">' + entry.finish.toUpperCase() + '</div>' : '') +
+      ((entry.wear || 0) >= 3 ? '<div class="wear">SURVIVOR ×' + entry.wear + '</div>' : '');
+    g.appendChild(card);
+  });
+  /* plastic-sleeve empties: the page always has room for more */
+  for (var i = 0; i < Math.max(0, 3 - (run.binder.length % 3 || 3)) + 3; i++){
+    var slot = document.createElement('div');
+    slot.className = 'tz slot';
+    slot.innerHTML = '<div style="width:52px;height:52px;border-radius:50%;border:2px dashed #4a4058"></div>';
+    g.appendChild(slot);
+  }
+  el('rbpouch').textContent = 'SLAMMER POUCH: ' +
+    run.pouch.map(function(k){ return SLAMMERS[k].name + (k === run.slammer ? ' ✓' : ''); }).join(' · ');
+  showScreen('binder');
+}
+
+/* ---------- court map: four acts, forks you pick ---------- */
 function showMap(){
   var wrap = el('mapnodes'); wrap.innerHTML = '';
-  NODES.forEach(function(n, i){
-    var d = document.createElement('div');
-    d.className = 'mapnode card' + (i === run.stage ? ' cur' : '');
-    var label = n.t === 'store' ? 'THE CORNER STORE'
-      : run.rivals[n.r].turf + ' — ' + run.rivals[n.r].name;
-    var st = i < run.stage ? 'BEAT' : (i === run.stage ? 'NOW' : 'LOCKED');
-    d.innerHTML = '<span>' + label + '</span><span class="st">' + st + '</span>';
-    wrap.appendChild(d);
+  var curAct = COURT[run.stage].act;
+  var curEl = null;
+  COURT.forEach(function(layer, i){
+    if (i === 0 || COURT[i - 1].act !== layer.act){
+      var h = document.createElement('div');
+      h.className = 'actline';
+      h.textContent = 'ACT ' + (layer.act + 1) + ' — ' + ACTS[layer.act];
+      if (layer.act > curAct) h.style.opacity = 0.35;
+      wrap.appendChild(h);
+    }
+    var row = document.createElement('div');
+    row.className = 'maprow';
+    var picked = Math.min(run.path[i] || 0, layer.opts.length - 1);
+    layer.opts.forEach(function(n, oi){
+      var d = document.createElement('div');
+      d.className = 'mapnode card';
+      /* rivals in future acts stay rumors */
+      var mystery = n.t === 'match' && layer.act > curAct;
+      var label = n.t === 'store' ? 'THE CORNER STORE'
+        : (mystery ? '?????' : RIVALS[n.r].turf + ' — ' + RIVALS[n.r].name);
+      var st;
+      if (i < run.stage) st = (layer.opts.length > 1 && picked !== oi) ? 'PASSED' : 'BEAT';
+      else if (i === run.stage){
+        st = layer.opts.length > 1 ? (picked === oi ? 'NOW' : 'OR...') : 'NOW';
+        d.classList.add(picked === oi ? 'cur' : 'alt');
+        if (layer.opts.length > 1)
+          d.addEventListener('click', function(){ run.path[i] = oi; showMap(); });
+        if (picked === oi) curEl = d;
+      } else st = 'LOCKED';
+      if (i !== run.stage) d.style.opacity = i < run.stage ? 0.45 : 0.7;
+      d.innerHTML = '<span>' + label + '</span><span class="st">' + st + '</span>';
+      row.appendChild(d);
+    });
+    wrap.appendChild(row);
   });
   el('mapmoney').textContent = 'LUNCH MONEY: $' + run.money;
   var boss = curNodeRival();
   el('maprumor').textContent = run.rumorKnown && boss && boss.rule
     ? 'rumor: ' + boss.name + ' plays ' + boss.ruleName : '';
   showScreen('map');
+  if (curEl) setTimeout(function(){ try{ curEl.scrollIntoView({ block: 'center' }); }catch(e){} }, 30);
   mark('map');
-  if (AUTO) setTimeout(function(){ el('gobtn').click(); }, 150);
+  if (AUTO) setTimeout(function(){
+    var L = COURT[run.stage];
+    if (L.opts.length > 1) run.path[run.stage] = Math.floor(rnd(0, L.opts.length));
+    el('gobtn').click();
+  }, 150);
 }
 function curNodeRival(){
-  for (var i = run.stage; i < NODES.length; i++){
-    if (NODES[i].t === 'match') return run.rivals[NODES[i].r];
+  for (var i = run.stage; i < COURT.length; i++){
+    var n = stageNode(i);
+    if (n.t === 'match') return run.rivals[n.r];
   }
   return null;
 }
@@ -83,7 +162,7 @@ var BAGS = {
   chum:  { name: 'CHUM BAG',  cost: 4, desc: '3 commons — ante fodder', tint: '#6d7b8d' },
   weird: { name: 'WEIRD BAG', cost: 5, desc: '2 rares from the effect pool', tint: '#b14aed' },
   heavy: { name: 'HEAVY BAG', cost: 5, desc: '2 weight & field chips', tint: '#e0863d' },
-  foil:  { name: 'FOIL BAG',  cost: 6, desc: '1 chip · big odds · HOLO inside', tint: '#7fd9c0' }
+  foil:  { name: 'FOIL BAG',  cost: 6, desc: '1 chip · big odds · a finish inside', tint: '#7fd9c0' }
 };
 var POOL_COMMON = ['smiley','pizza','alien','star','skull','cat','hypno','duck'];
 var POOL_EFFECT = ['rubber','double','whoopee','vhs'];
@@ -230,17 +309,32 @@ function buyRumor(){
   renderStore();
 }
 /* ---------- Blind Bags: the ritual ---------- */
+function rollFinish(bag){
+  if (bag === 'foil'){
+    /* foil always shines — the question is HOW */
+    var r = Math.random();
+    if (r < 0.4) return 'holo';
+    if (r < 0.55) return 'glow';
+    if (r < 0.7) return 'metal';
+    if (r < 0.8) return 'popup';
+    if (r < 0.9) return 'infinity';
+    return 'motion';
+  }
+  /* the misprint pool: factory accidents */
+  if (Math.random() < 0.25)
+    return ['static', 'wetink', 'xray', 'misprint'][Math.floor(rnd(0, 4))];
+  return null;
+}
 function rollBag(type){
   var pulls = [];
-  function fin(p){ return p; }
   if (type === 'chum'){
     for (var i = 0; i < 3; i++) pulls.push({ key: POOL_COMMON[Math.floor(rnd(0, POOL_COMMON.length))], finish: null });
   } else if (type === 'weird'){
-    for (var j = 0; j < 2; j++) pulls.push({ key: POOL_EFFECT[Math.floor(rnd(0, 4))], finish: Math.random() < 0.2 ? 'static' : null });
+    for (var j = 0; j < 2; j++) pulls.push({ key: POOL_EFFECT[Math.floor(rnd(0, 4))], finish: rollFinish() });
   } else if (type === 'heavy'){
-    for (var k = 0; k < 2; k++) pulls.push({ key: POOL_PHYS[Math.floor(rnd(0, 4))], finish: Math.random() < 0.2 ? 'static' : null });
+    for (var k = 0; k < 2; k++) pulls.push({ key: POOL_PHYS[Math.floor(rnd(0, 4))], finish: rollFinish() });
   } else {
-    pulls.push({ key: Math.random() < 0.3 ? 'mecha' : POOL_EFFECT.concat(POOL_PHYS)[Math.floor(rnd(0, 8))], finish: 'holo' });
+    pulls.push({ key: Math.random() < 0.3 ? 'mecha' : POOL_EFFECT.concat(POOL_PHYS)[Math.floor(rnd(0, 8))], finish: rollFinish('foil') });
   }
   return pulls;
 }

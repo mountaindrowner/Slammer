@@ -67,11 +67,23 @@
 
 <!-- COURT MAP -->
 <div class="screen" id="map">
-  <h2 style="font-size:26px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">THE NEIGHBORHOOD</h2>
+  <h2 style="font-size:26px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">THE COURT</h2>
   <div class="shout" id="mapmoney" style="font-size:13px;color:var(--pop)"></div>
   <div class="say" id="maprumor" style="font-size:11px;color:var(--cyan)"></div>
   <div id="mapnodes" style="display:flex;flex-direction:column;gap:10px;max-width:340px;width:100%"></div>
-  <button id="gobtn">GO</button>
+  <div class="ante-btns">
+    <button class="ghost" id="binderbtn">MY BINDER</button>
+    <button id="gobtn">GO</button>
+  </div>
+</div>
+
+<!-- IN-RUN BINDER -->
+<div class="screen" id="binder">
+  <h2 style="font-size:24px;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000">THE BINDER</h2>
+  <div class="subtitle" id="bindersub"></div>
+  <div class="binder-grid" id="rbgrid" style="max-height:52vh"></div>
+  <div class="say" id="rbpouch" style="font-size:11px;color:var(--cyan)"></div>
+  <button class="ghost" id="binderback">BACK</button>
 </div>
 
 <!-- CORNER STORE -->
@@ -136,6 +148,8 @@
 <div class="screen" id="runend">
   <h2 id="runendtitle" style="font-size:34px;text-align:center;text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000"></h2>
   <div class="subtitle" id="runendsub"></div>
+  <div class="say" id="runendroute" style="font-size:11px;color:var(--pop);text-align:center;max-width:320px"></div>
+  <div class="say" id="runendstats" style="font-size:11px;color:var(--cyan);text-align:center;max-width:320px"></div>
   <div class="resultlist" id="runendbinder"></div>
   <button id="runendbtn">NEW RUN</button>
 </div>

@@ -88,10 +88,17 @@
   #pouch{display:flex;gap:6px;margin-bottom:6px;pointer-events:auto}
   #pouch img{width:34px;height:34px;border-radius:50%;border:2px solid #4a4058;opacity:.5;cursor:pointer}
   #pouch img.sel{border-color:var(--pop);opacity:1;box-shadow:0 0 8px rgba(245,185,61,.55)}
-  .mapnode{display:flex;justify-content:space-between;align-items:center;font-family:var(--shout);font-size:12px;padding:12px}
+  .mapnode{display:flex;justify-content:space-between;align-items:center;font-family:var(--shout);font-size:12px;padding:10px 12px;gap:6px}
   .mapnode.cur{outline:3px solid var(--pop)}
-  .mapnode .st{font-size:10px;opacity:.7}
+  .mapnode.alt{outline:3px dashed var(--cyan);cursor:pointer}
+  .mapnode .st{font-size:10px;opacity:.7;flex:none}
   .mapnode.cur .st{color:var(--pop);opacity:1}
+  .mapnode span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .maprow{display:flex;gap:8px;width:100%}
+  .maprow .mapnode{flex:1;min-width:0}
+  .actline{font-family:var(--shout);font-size:11px;color:var(--pink);letter-spacing:2px;
+    margin-top:6px;text-shadow:2px 2px 0 #000}
+  #map{justify-content:flex-start;padding-top:16px}
   #powwrap{height:20px;background:#1d1630;border:3px solid #000;border-radius:10px;overflow:hidden;
     box-shadow:3px 3px 0 #000;visibility:hidden;position:relative}
   #powfill{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--pop),var(--pink))}
